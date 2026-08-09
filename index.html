@@ -2,115 +2,383 @@
 <html lang="az">
 <head>
     <meta charset="UTF-8">
-    <title>Qiymət Təklifi</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RM Steel - Qiymət Təklifi İdarəetmə Sistemi</title>
+    
+    <!-- Bootstrap 5 & FontAwesome -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Supabase JS -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <!-- PDF & Excel Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
     <style>
-        @media print {
-            .no-print { display: none !important; }
+        :root {
+            --glass-bg: rgba(255, 255, 255, 0.7);
+            --glass-border: rgba(255, 255, 255, 0.4);
+            --text-color: #333;
+            --bg-image: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
         }
+        [data-theme="dark"] {
+            --glass-bg: rgba(30, 30, 30, 0.7);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --text-color: #f1f1f1;
+            --bg-image: linear-gradient(135deg, #232526 0%, #414345 100%);
+        }
+        body {
+            background: var(--bg-image);
+            color: var(--text-color);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            min-height: 100vh;
+            transition: background 0.5s;
+        }
+        .glass-panel {
+            background: var(--glass-bg);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid var(--glass-border);
+            border-radius: 15px;
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .glass-input {
+            background: rgba(255, 255, 255, 0.5);
+            border: 1px solid var(--glass-border);
+            color: var(--text-color);
+        }
+        [data-theme="dark"] .glass-input { background: rgba(0, 0, 0, 0.3); color: white; }
+        
+        /* Auth Screen */
+        #authScreen { display: flex; height: 100vh; align-items: center; justify-content: center; }
+        #appScreen { display: none; }
+        
+        /* Print Styles for PDF Quality */
+        #printArea { background: white !important; color: black !important; border-radius: 0; padding: 40px; }
+        .no-print { display: block; }
+        .table-glass th, .table-glass td { border-color: rgba(0,0,0,0.1); }
+        
+        .loader { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 9999; }
+        .offline-badge { display: none; }
     </style>
 </head>
 <body>
-    <div id="printArea" style="padding: 15px; background: white;">
-        <table width="100%">
-            <tr>
-                <td>
-                    <h2>RM Steel MMC</h2>
-                    <p>Əsl poladın ünvanı!<br>
-                    Bakı ş., Dərnəgül pr., Grand bazar<br>
-                    Email: info@rmsteel.az | Tel: +994 10 600 09 01</p>
-                </td>
-                <td align="right" valign="top">
-                    <h1>QİYMƏT TƏKLİFİ</h1>
-                    <p>Tarix: <input type="date" id="docDate" value="2026-08-08"><br>
-                    Təklif №: <input type="text" id="docNo"></p>
-                </td>
-            </tr>
-        </table>
-        <p><b>Müştəri:</b> <input type="text" id="clientName" style="width: 300px;"></p>
-        <table border="1" cellspacing="0" cellpadding="5" width="100%">
-            <thead>
-                <tr>
-                    <th>#</th>
-                    <th>Malların adı</th>
-                    <th>Ölçü vahidi</th>
-                    <th>Miqdar</th>
-                    <th>Qiymət</th>
-                    <th>Məbləğ (AZN)</th>
-                    <th>Qeydlər</th>
-                    <th class="no-print"></th>
-                </tr>
-            </thead>
-            <tbody id="rows">
-            </tbody>
-            <tfoot>
-                <tr>
-                    <td colspan="5" align="right"><b>Cəmi:</b></td>
-                    <td id="total">0.00</td>
-                    <td colspan="2"></td>
-                </tr>
-            </tfoot>
-        </table>
-    </div>
-    <br>
-    <div class="no-print" style="margin-bottom: 20px;">
-        <button onclick="add()">+ Yeni sətir</button>
-        <button onclick="saveData()" style="background: #28a745; color: white; padding: 6px 16px; font-weight: bold; border: none; cursor: pointer; border-radius: 4px;">💾 Yadda saxla</button>
-        <button onclick="clearData()" style="background: #dc3545; color: white; padding: 6px 16px; border: none; cursor: pointer; border-radius: 4px;">Sıfırla</button>
+
+    <!-- Yüklənmə İkonu -->
+    <div class="loader spinner-border text-primary" role="status" id="globalLoader"></div>
+
+    <!-- AVTORİZASİYA SƏHİFƏSİ -->
+    <div id="authScreen" class="container">
+        <div class="glass-panel text-center" style="max-width: 400px; width: 100%;">
+            <h2><i class="fas fa-shield-alt text-primary"></i> RM Steel Giriş</h2>
+            <p class="text-muted">Sistemə daxil olun və ya qeydiyyatdan keçin</p>
+            <div id="authAlert" class="alert d-none"></div>
+            
+            <input type="email" id="email" class="form-control glass-input mb-3" placeholder="Email adresi">
+            <input type="password" id="password" class="form-control glass-input mb-3" placeholder="Şifrə">
+            
+            <button onclick="login()" class="btn btn-primary w-100 mb-2">Daxil ol</button>
+            <button onclick="register()" class="btn btn-outline-secondary w-100 mb-2">Qeydiyyat</button>
+            <a href="#" onclick="resetPassword()" class="text-sm">Şifrəni unutmusunuz?</a>
+        </div>
     </div>
 
+    <!-- ƏSAS TƏTBİQ SƏHİFƏSİ -->
+    <div id="appScreen" class="container-fluid py-4">
+        
+        <!-- Navbar -->
+        <nav class="glass-panel d-flex justify-content-between align-items-center mb-4">
+            <h4 class="m-0"><i class="fas fa-layer-group"></i> İdarəetmə Paneli</h4>
+            <div>
+                <span class="badge bg-danger offline-badge me-2" id="offlineBadge"><i class="fas fa-wifi"></i> Offline</span>
+                <button class="btn btn-sm btn-outline-info me-2" onclick="toggleTheme()"><i class="fas fa-moon"></i></button>
+                <button class="btn btn-sm btn-danger" onclick="logout()"><i class="fas fa-sign-out-alt"></i> Çıxış</button>
+            </div>
+        </nav>
+
+        <!-- Tabs -->
+        <ul class="nav nav-pills mb-3" id="pills-tab" role="tablist">
+            <li class="nav-item"><button class="nav-link active glass-panel py-2 px-4" data-bs-toggle="pill" data-bs-target="#tab-editor">📝 Yeni / Redaktə</button></li>
+            <li class="nav-item"><button class="nav-link glass-panel py-2 px-4 mx-2" data-bs-toggle="pill" data-bs-target="#tab-list" onclick="loadQuotations()">📋 Təkliflər Siyahısı</button></li>
+            <li class="nav-item"><button class="nav-link glass-panel py-2 px-4" data-bs-toggle="pill" data-bs-target="#tab-audit" onclick="loadAuditLogs()">🔍 Audit (Tarixçə)</button></li>
+        </ul>
+
+        <div class="tab-content">
+            <!-- TAB 1: EDİTOR -->
+            <div class="tab-pane fade show active" id="tab-editor">
+                
+                <div class="glass-panel mb-3 d-flex justify-content-between flex-wrap gap-2">
+                    <button class="btn btn-success" onclick="saveQuotation()"><i class="fas fa-save"></i> Yadda Saxla</button>
+                    <button class="btn btn-primary" onclick="generatePDF()"><i class="fas fa-file-pdf"></i> PDF Yüklə</button>
+                    <button class="btn btn-success" onclick="exportExcel()"><i class="fas fa-file-excel"></i> Excel İxrac</button>
+                    <input type="file" id="excelUpload" class="d-none" accept=".xlsx, .xls" onchange="importExcel(event)">
+                    <button class="btn btn-outline-success" onclick="document.getElementById('excelUpload').click()"><i class="fas fa-file-import"></i> Excel İdxal</button>
+                    <button class="btn btn-warning" onclick="exportJSON()"><i class="fas fa-code"></i> JSON İxrac</button>
+                    <button class="btn btn-secondary" onclick="newQuotation()"><i class="fas fa-plus"></i> Yeni Sənəd</button>
+                    <small class="text-muted align-self-center ms-auto" id="autoSaveStatus">Avtomatik yaddaş aktivdir</small>
+                </div>
+
+                <div class="glass-panel" id="printContainer" style="overflow-x: auto;">
+                    <div id="printArea">
+                        <table width="100%" class="mb-4">
+                            <tr>
+                                <td>
+                                    <h2 style="color: #0d6efd; font-weight: bold;">RM Steel MMC</h2>
+                                    <p style="margin: 0; font-size: 14px;"><i>Əsl poladın ünvanı!</i><br>
+                                    Bakı ş., Dərnəgül pr., Grand Bazar<br>
+                                    Email: info@rmsteel.az | Tel: +994 10 600 09 01</p>
+                                </td>
+                                <td align="right" valign="top">
+                                    <h1 style="margin:0; font-size: 28px;">QİYMƏT TƏKLİFİ</h1>
+                                    <p style="margin: 5px 0 0 0; font-size: 15px;">
+                                    Tarix: <input type="date" id="docDate" class="glass-input auto-save"><br>
+                                    Təklif №: <input type="text" id="docNo" class="glass-input auto-save" placeholder="Məs: RM-001" style="margin-top: 5px;"></p>
+                                </td>
+                            </tr>
+                        </table>
+
+                        <p><b>Müştəri:</b> <input type="text" id="clientName" class="glass-input auto-save form-control" style="max-width: 400px; display: inline-block;"></p>
+                        
+                        <table class="table table-bordered table-glass" style="min-width: 800px;">
+                            <thead class="table-light">
+                                <tr>
+                                    <th width="5%">№</th>
+                                    <th width="30%">Malların adı</th>
+                                    <th width="10%">Ölçü vahidi</th>
+                                    <th width="10%">Miqdar</th>
+                                    <th width="15%">Qiymət (AZN)</th>
+                                    <th width="15%">Məbləğ (AZN)</th>
+                                    <th width="10%">Qeydlər</th>
+                                    <th width="5%" class="no-print text-center"><i class="fas fa-cog"></i></th>
+                                </tr>
+                            </thead>
+                            <tbody id="rows">
+                                <!-- Sətirlər bura düşəcək -->
+                            </tbody>
+                            <tfoot>
+                                <tr>
+                                    <td colspan="5" align="right"><b>Ümumi Cəmi:</b></td>
+                                    <td colspan="3"><b id="totalAmount" style="font-size: 18px;">0.00</b> AZN</td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                        <button class="btn btn-sm btn-outline-primary no-print" onclick="addRow()"><i class="fas fa-plus"></i> Sətir əlavə et</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 2: SİYAHI -->
+            <div class="tab-pane fade" id="tab-list">
+                <div class="glass-panel">
+                    <div class="row mb-3">
+                        <div class="col-md-3">
+                            <input type="text" id="searchClient" class="form-control glass-input" placeholder="Müştəri və ya № axtar..." onkeyup="filterList()">
+                        </div>
+                        <div class="col-md-9 text-end">
+                            <div class="btn-group">
+                                <button class="btn btn-outline-primary active" onclick="filterDate('all')">Hamısı</button>
+                                <button class="btn btn-outline-primary" onclick="filterDate('today')">Bugün</button>
+                                <button class="btn btn-outline-primary" onclick="filterDate('week')">Bu Həftə</button>
+                                <button class="btn btn-outline-primary" onclick="filterDate('month')">Bu Ay</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover table-glass">
+                            <thead>
+                                <tr>
+                                    <th>Təklif №</th>
+                                    <th>Müştəri</th>
+                                    <th>Tarix</th>
+                                    <th>Məbləğ</th>
+                                    <th>Son Yenilənmə</th>
+                                    <th>Əməliyyatlar</th>
+                                </tr>
+                            </thead>
+                            <tbody id="listBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 3: AUDİT -->
+            <div class="tab-pane fade" id="tab-audit">
+                <div class="glass-panel">
+                    <h5>Tarixçə və Dəyişikliklər</h5>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-glass">
+                            <thead>
+                                <tr>
+                                    <th>Tarix / Saat</th>
+                                    <th>Əməliyyat</th>
+                                    <th>Detallar</th>
+                                </tr>
+                            </thead>
+                            <tbody id="auditBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SCRIPT HİSSƏSİ -->
     <script>
-        // Səhifə açılan kimi mövcud yaddaşdakı məlumatları yüklə
-        window.onload = function() {
-            loadData();
+        /* ==========================================
+           1. SUPABASE QURAŞDIRILMASI (BURANI DƏYİŞİN)
+           ========================================== */
+        const SUPABASE_URL = 'YOUR_SUPABASE_URL'; // BURA YAZIN (məs: https://xyz.supabase.co)
+        const SUPABASE_KEY = 'YOUR_SUPABASE_ANON_KEY'; // BURA YAZIN (anon public key)
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        /* Dəyişənlər */
+        let currentUser = null;
+        let currentDocId = null; 
+        let autoSaveTimer = null;
+        let offlineQueue = JSON.parse(localStorage.getItem('offlineQueue')) || [];
+
+        /* ==========================================
+           2. SİSTEM BAŞLADIQDA İCRA OLUNANLAR
+           ========================================== */
+        window.onload = async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session) {
+                currentUser = session.user;
+                showApp();
+                await syncOfflineData();
+                loadLastSession();
+            }
+            
+            // Auto-save event listeners
+            document.getElementById('printContainer').addEventListener('input', (e) => {
+                if(e.target.classList.contains('auto-save') || e.target.closest('#rows')) {
+                    if(e.target.classList.contains('q') || e.target.classList.contains('p')) calc();
+                    clearTimeout(autoSaveTimer);
+                    document.getElementById('autoSaveStatus').innerText = "Yazılır...";
+                    document.getElementById('autoSaveStatus').style.color = "orange";
+                    autoSaveTimer = setTimeout(() => saveQuotation(true), 2000); // 2 saniyə sonra avtomatik save
+                }
+            });
+
+            // Offline/Online dinləyiciləri
+            window.addEventListener('offline', () => document.getElementById('offlineBadge').style.display = 'inline-block');
+            window.addEventListener('online', async () => {
+                document.getElementById('offlineBadge').style.display = 'none';
+                await syncOfflineData();
+            });
+            if(!navigator.onLine) document.getElementById('offlineBadge').style.display = 'inline-block';
         };
 
-        function calc() {
-            let trs = document.querySelectorAll('#rows tr'), sum = 0;
-            trs.forEach(tr => {
-                let q = parseFloat(tr.querySelector('.q').value) || 0;
-                let p = parseFloat(tr.querySelector('.p').value) || 0;
-                let a = q * p;
-                tr.querySelector('.a').innerText = a.toFixed(2);
-                sum += a;
-            });
-            document.getElementById('total').innerText = sum.toFixed(2);
+        /* ==========================================
+           3. AUTH (GİRİŞ / QEYDİYYAT)
+           ========================================== */
+        function showAlert(msg, isError=false) {
+            const el = document.getElementById('authAlert');
+            el.className = `alert alert-${isError?'danger':'success'}`;
+            el.innerText = msg;
+            el.classList.remove('d-none');
+            setTimeout(()=> el.classList.add('d-none'), 4000);
         }
 
-        function add(name = '', unit = 'Metr', q = 0, p = 0, note = '') {
-            let tbody = document.getElementById('rows');
-            let tr = document.createElement('tr');
+        function showLoader(show) { document.getElementById('globalLoader').style.display = show ? 'block' : 'none'; }
+
+        async function login() {
+            showLoader(true);
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+            showLoader(false);
+            if (error) showAlert(error.message, true);
+            else { currentUser = data.user; showApp(); loadLastSession(); }
+        }
+
+        async function register() {
+            showLoader(true);
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const { data, error } = await supabase.auth.signUp({ email, password });
+            showLoader(false);
+            if (error) showAlert(error.message, true);
+            else showAlert("Qeydiyyat uğurlu! E-poçtunuzu təsdiqləyin.");
+        }
+
+        async function logout() {
+            await supabase.auth.signOut();
+            currentUser = null;
+            document.getElementById('appScreen').style.display = 'none';
+            document.getElementById('authScreen').style.display = 'flex';
+        }
+
+        async function resetPassword() {
+            const email = prompt("Şifrəni sıfırlamaq üçün emailinizi yazın:");
+            if(email) {
+                const { error } = await supabase.auth.resetPasswordForEmail(email);
+                if(error) alert(error.message); else alert("Sıfırlama linki göndərildi.");
+            }
+        }
+
+        function showApp() {
+            document.getElementById('authScreen').style.display = 'none';
+            document.getElementById('appScreen').style.display = 'block';
+            document.getElementById('docDate').valueAsDate = new Date();
+        }
+
+        /* ==========================================
+           4. CƏDVƏL FUNKSİYALARI (HESABLAMA / ƏLAVƏ)
+           ========================================== */
+        function addRow(name='', unit='Ədəd', q=1, p=0, note='') {
+            const tbody = document.getElementById('rows');
+            const tr = document.createElement('tr');
             tr.innerHTML = `
-                <td align="center" class="num"></td>
-                <td><input type="text" class="item-name" value="${name}" style="width:95%"></td>
-                <td><input type="text" class="item-unit" value="${unit}" style="width:95%"></td>
-                <td><input type="number" step="any" value="${q}" class="q" oninput="calc()"></td>
-                <td><input type="number" step="any" value="${p}" class="p" oninput="calc()"></td>
-                <td class="a">0.00</td>
-                <td><input type="text" class="item-note" value="${note}" style="width:95%"></td>
-                <td class="no-print"><button onclick="del(this)">X</button></td>
+                <td align="center" class="num fw-bold"></td>
+                <td><input type="text" class="form-control glass-input auto-save item-name" value="${name}"></td>
+                <td><input type="text" class="form-control glass-input auto-save item-unit" value="${unit}"></td>
+                <td><input type="number" step="any" class="form-control glass-input auto-save q" value="${q}"></td>
+                <td><input type="number" step="any" class="form-control glass-input auto-save p" value="${p}"></td>
+                <td class="align-middle fw-bold a">0.00</td>
+                <td><input type="text" class="form-control glass-input auto-save item-note" value="${note}"></td>
+                <td class="no-print text-center align-middle">
+                    <button class="btn btn-sm btn-danger" onclick="delRow(this)"><i class="fas fa-trash"></i></button>
+                </td>
             `;
             tbody.appendChild(tr);
             renumber();
             calc();
         }
 
-        function del(btn) {
+        function delRow(btn) {
             btn.closest('tr').remove();
             renumber();
             calc();
+            saveQuotation(true); // Auto-save on delete
         }
 
         function renumber() {
-            document.querySelectorAll('#rows tr').forEach((tr, i) => {
-                tr.querySelector('.num').innerText = i + 1;
-            });
+            document.querySelectorAll('#rows tr').forEach((tr, i) => { tr.querySelector('.num').innerText = i + 1; });
         }
 
-        // Məlumatları daimi brauzer yaddaşına yazmaq
-        function saveData() {
-            const rowsData = [];
+        function calc() {
+            let sum = 0;
             document.querySelectorAll('#rows tr').forEach(tr => {
-                rowsData.push({
+                let q = parseFloat(tr.querySelector('.q').value) || 0;
+                let p = parseFloat(tr.querySelector('.p').value) || 0;
+                let a = q * p;
+                tr.querySelector('.a').innerText = a.toFixed(2);
+                sum += a;
+            });
+            document.getElementById('totalAmount').innerText = sum.toFixed(2);
+            return sum;
+        }
+
+        function getFormData() {
+            let items = [];
+            document.querySelectorAll('#rows tr').forEach(tr => {
+                items.push({
                     name: tr.querySelector('.item-name').value,
                     unit: tr.querySelector('.item-unit').value,
                     q: tr.querySelector('.q').value,
@@ -118,41 +386,320 @@
                     note: tr.querySelector('.item-note').value
                 });
             });
+            return {
+                doc_no: document.getElementById('docNo').value || 'Sənədsiz',
+                client_name: document.getElementById('clientName').value || 'Adsız Müştəri',
+                doc_date: document.getElementById('docDate').value,
+                items: items,
+                total_amount: calc()
+            };
+        }
 
-            const formData = {
-                docDate: document.getElementById('docDate').value,
-                docNo: document.getElementById('docNo').value,
-                clientName: document.getElementById('clientName').value,
-                rows: rowsData
+        /* ==========================================
+           5. BAZA İLƏ ƏMƏLİYYATLAR (CRUD & OFFLINE)
+           ========================================== */
+        async function saveQuotation(isAuto = false) {
+            const data = getFormData();
+            if(!data.items.length) return; // Boş sənədi yadda saxlamayaq
+
+            // LocalStorage hər ehtimala qarşı daimi yenilənir
+            localStorage.setItem('lastSession', JSON.stringify({id: currentDocId, ...data}));
+
+            if (!navigator.onLine) {
+                // Offline rejim
+                offlineQueue.push({ action: currentDocId ? 'UPDATE' : 'INSERT', id: currentDocId, data });
+                localStorage.setItem('offlineQueue', JSON.stringify(offlineQueue));
+                updateStatus(isAuto, "Offline yadda saxlanıldı", "red");
+                return;
+            }
+
+            const payload = {
+                user_id: currentUser.id,
+                doc_no: data.doc_no,
+                client_name: data.client_name,
+                doc_date: data.doc_date,
+                items: data.items,
+                total_amount: data.total_amount,
+                updated_at: new Date()
             };
 
-            localStorage.setItem('rm_steel_proposal', JSON.stringify(formData));
-            alert('Məlumatlar uğurla yadda saxlanıldı!');
-        }
-
-        // Səhifəyə yenidən girəndə məlumatları yaddaşdan oxumaq
-        function loadData() {
-            const savedData = localStorage.getItem('rm_steel_proposal');
-            if (savedData) {
-                const data = JSON.parse(savedData);
-                document.getElementById('docDate').value = data.docDate || '2026-08-08';
-                document.getElementById('docNo').value = data.docNo || '';
-                document.getElementById('clientName').value = data.clientName || '';
-
-                document.getElementById('rows').innerHTML = '';
-                if (data.rows && data.rows.length > 0) {
-                    data.rows.forEach(r => add(r.name, r.unit, r.q, r.p, r.note));
+            showLoader(!isAuto);
+            let res;
+            if (currentDocId) {
+                res = await supabase.from('quotations').update(payload).eq('id', currentDocId).select();
+                logAudit('Redaktə', `${data.doc_no} nömrəli təklif yeniləndi.`);
+            } else {
+                res = await supabase.from('quotations').insert([payload]).select();
+                if(res.data) {
+                    currentDocId = res.data[0].id;
+                    logAudit('Yeni', `${data.doc_no} nömrəli təklif yaradıldı.`);
                 }
             }
-        }
+            showLoader(false);
 
-        // Forma məlumatlarını sıfırlamaq
-        function clearData() {
-            if (confirm("Yadda saxlanılmış məlumatları silmək və formanı sıfırlamaq istədiyinizdən əminsiniz?")) {
-                localStorage.removeItem('rm_steel_proposal');
-                location.reload();
+            if (res.error) {
+                if(!isAuto) alert("Xəta: " + res.error.message);
+                updateStatus(isAuto, "Xəta baş verdi", "red");
+            } else {
+                updateStatus(isAuto, "Bazada saxlanıldı", "green");
+                if(!isAuto) alert("Uğurla yadda saxlanıldı!");
             }
         }
+
+        function updateStatus(isAuto, msg, color) {
+            const el = document.getElementById('autoSaveStatus');
+            el.innerText = (isAuto ? "Avto: " : "") + msg + " (" + new Date().toLocaleTimeString() + ")";
+            el.style.color = color;
+        }
+
+        async function syncOfflineData() {
+            if (offlineQueue.length === 0) return;
+            for (let item of offlineQueue) {
+                const p = { user_id: currentUser.id, ...item.data, updated_at: new Date() };
+                if (item.action === 'UPDATE' && item.id) {
+                    await supabase.from('quotations').update(p).eq('id', item.id);
+                } else {
+                    await supabase.from('quotations').insert([p]);
+                }
+            }
+            offlineQueue = [];
+            localStorage.removeItem('offlineQueue');
+            alert("Offline məlumatlar bazaya sinxronizasiya edildi.");
+        }
+
+        function newQuotation() {
+            currentDocId = null;
+            document.getElementById('docNo').value = '';
+            document.getElementById('clientName').value = '';
+            document.getElementById('docDate').valueAsDate = new Date();
+            document.getElementById('rows').innerHTML = '';
+            addRow();
+            localStorage.removeItem('lastSession');
+            document.getElementById('autoSaveStatus').innerText = "Yeni sənəd";
+        }
+
+        function loadLastSession() {
+            const saved = localStorage.getItem('lastSession');
+            if (saved) {
+                const data = JSON.parse(saved);
+                currentDocId = data.id;
+                document.getElementById('docNo').value = data.doc_no;
+                document.getElementById('clientName').value = data.client_name;
+                document.getElementById('docDate').value = data.doc_date;
+                document.getElementById('rows').innerHTML = '';
+                data.items.forEach(i => addRow(i.name, i.unit, i.q, i.p, i.note));
+            } else {
+                addRow();
+            }
+        }
+
+        /* ==========================================
+           6. SİYAHI VƏ AXTARIŞ
+           ========================================== */
+        let allQuotations = [];
+        
+        async function loadQuotations() {
+            showLoader(true);
+            const { data, error } = await supabase.from('quotations').select('*').order('updated_at', { ascending: false });
+            showLoader(false);
+            if (data) {
+                allQuotations = data;
+                renderList(data);
+            }
+        }
+
+        function renderList(data) {
+            const tbody = document.getElementById('listBody');
+            tbody.innerHTML = '';
+            data.forEach(q => {
+                let d = new Date(q.updated_at).toLocaleString('az-AZ');
+                tbody.innerHTML += `
+                    <tr>
+                        <td class="fw-bold">${q.doc_no}</td>
+                        <td>${q.client_name}</td>
+                        <td>${q.doc_date}</td>
+                        <td><b>${q.total_amount} AZN</b></td>
+                        <td style="font-size:12px;">${d}</td>
+                        <td>
+                            <button class="btn btn-sm btn-primary" onclick="openQuotation('${q.id}')"><i class="fas fa-folder-open"></i> Aç</button>
+                            <button class="btn btn-sm btn-danger" onclick="deleteQuotation('${q.id}', '${q.doc_no}')"><i class="fas fa-trash"></i></button>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        function filterList() {
+            const text = document.getElementById('searchClient').value.toLowerCase();
+            const filtered = allQuotations.filter(q => 
+                q.client_name.toLowerCase().includes(text) || 
+                q.doc_no.toLowerCase().includes(text)
+            );
+            renderList(filtered);
+        }
+
+        function filterDate(period) {
+            document.querySelectorAll('#tab-list .btn-group .btn').forEach(b => b.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            const now = new Date();
+            let filtered = allQuotations;
+
+            if (period === 'today') {
+                const today = now.toISOString().split('T')[0];
+                filtered = allQuotations.filter(q => q.doc_date === today);
+            } else if (period === 'week') {
+                const pastWeek = new Date(now.setDate(now.getDate() - 7));
+                filtered = allQuotations.filter(q => new Date(q.doc_date) >= pastWeek);
+            } else if (period === 'month') {
+                const pastMonth = new Date(now.setMonth(now.getMonth() - 1));
+                filtered = allQuotations.filter(q => new Date(q.doc_date) >= pastMonth);
+            }
+            renderList(filtered);
+        }
+
+        function openQuotation(id) {
+            const q = allQuotations.find(x => x.id === id);
+            if (q) {
+                currentDocId = q.id;
+                document.getElementById('docNo').value = q.doc_no;
+                document.getElementById('clientName').value = q.client_name;
+                document.getElementById('docDate').value = q.doc_date;
+                document.getElementById('rows').innerHTML = '';
+                q.items.forEach(i => addRow(i.name, i.unit, i.q, i.p, i.note));
+                
+                // Editor tabına keçid
+                document.querySelector('[data-bs-target="#tab-editor"]').click();
+            }
+        }
+
+        async function deleteQuotation(id, docNo) {
+            if(confirm('Silmək istədiyinizə əminsiniz?')) {
+                await supabase.from('quotations').delete().eq('id', id);
+                logAudit('Silinmə', `${docNo} nömrəli sənəd silindi.`);
+                if(currentDocId === id) newQuotation();
+                loadQuotations();
+            }
+        }
+
+        /* ==========================================
+           7. AUDİT LOGLAR
+           ========================================== */
+        async function logAudit(action, details) {
+            if(navigator.onLine) {
+                await supabase.from('audit_logs').insert([{ user_id: currentUser.id, action, details }]);
+            }
+        }
+
+        async function loadAuditLogs() {
+            const { data } = await supabase.from('audit_logs').select('*').order('created_at', { ascending: false }).limit(50);
+            const tbody = document.getElementById('auditBody');
+            tbody.innerHTML = '';
+            if(data) {
+                data.forEach(log => {
+                    let d = new Date(log.created_at).toLocaleString('az-AZ');
+                    tbody.innerHTML += `<tr><td>${d}</td><td><span class="badge bg-secondary">${log.action}</span></td><td>${log.details}</td></tr>`;
+                });
+            }
+        }
+
+        /* ==========================================
+           8. EXPORT / IMPORT (PDF, EXCEL, JSON)
+           ========================================== */
+        async function generatePDF() {
+            // PDF üçün müvəqqəti dizayn düzəlişləri (dark mode problem yaratmasın deyə)
+            const printEl = document.getElementById('printArea');
+            const btns = printEl.querySelectorAll('.no-print');
+            btns.forEach(b => b.style.display = 'none');
+            
+            showLoader(true);
+            const canvas = await html2canvas(printEl, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
+            const imgData = canvas.toDataURL('image/png');
+            const pdf = new jspdf.jsPDF('p', 'mm', 'a4');
+            const pdfW = pdf.internal.pageSize.getWidth();
+            const pdfH = (canvas.height * pdfW) / canvas.width;
+            
+            pdf.addImage(imgData, 'PNG', 0, 0, pdfW, pdfH);
+            pdf.save(`Teklif_${document.getElementById('docNo').value}.pdf`);
+            
+            btns.forEach(b => b.style.display = 'block');
+            showLoader(false);
+            logAudit('PDF', `${document.getElementById('docNo').value} sənədi PDF olaraq yükləndi.`);
+        }
+
+        function exportJSON() {
+            const data = getFormData();
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.download = `Teklif_${data.doc_no}.json`;
+            link.click();
+        }
+
+        function exportExcel() {
+            const data = getFormData();
+            const ws_data = [
+                ["Təklif №", data.doc_no, "Tarix", data.doc_date],
+                ["Müştəri", data.client_name, "", ""],
+                [],
+                ["№", "Malların adı", "Ölçü", "Miqdar", "Qiymət", "Məbləğ", "Qeyd"]
+            ];
+            data.items.forEach((item, index) => {
+                ws_data.push([index+1, item.name, item.unit, item.q, item.p, (item.q*item.p).toFixed(2), item.note]);
+            });
+            ws_data.push([], ["","","","","Ümumi Cəm:", data.total_amount, ""]);
+
+            const ws = XLSX.utils.aoa_to_sheet(ws_data);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Təklif");
+            XLSX.writeFile(wb, `Teklif_${data.doc_no}.xlsx`);
+            logAudit('Excel İxrac', `${data.doc_no} sənədi Excelə çıxarıldı.`);
+        }
+
+        function importExcel(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, {type: 'array'});
+                const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                const jsonData = XLSX.utils.sheet_to_json(firstSheet, {header: 1});
+                
+                // Sadə bir import məntiqi (şablona uyğun deyilsə qarışa bilər)
+                if(confirm('Hazırki sətirlər silinib Exceldən məlumatlar yazılsın?')) {
+                    document.getElementById('rows').innerHTML = '';
+                    // 4-cü sətirdən sonra məhsullar başlayır (məntiq olaraq)
+                    for(let i = 4; i < jsonData.length; i++) {
+                        let row = jsonData[i];
+                        if(row[1]) { // Məhsul adı varsa
+                            addRow(row[1]||'', row[2]||'Ədəd', parseFloat(row[3])||0, parseFloat(row[4])||0, row[6]||'');
+                        }
+                    }
+                }
+            };
+            reader.readAsArrayBuffer(file);
+            event.target.value = ''; // reset
+        }
+
+        /* ==========================================
+           9. DİZAYN / THEME (GLASSMORPHISM)
+           ========================================== */
+        function toggleTheme() {
+            const body = document.body;
+            if (body.getAttribute('data-theme') === 'dark') {
+                body.removeAttribute('data-theme');
+                localStorage.setItem('theme', 'light');
+            } else {
+                body.setAttribute('data-theme', 'dark');
+                localStorage.setItem('theme', 'dark');
+            }
+        }
+        if(localStorage.getItem('theme') === 'dark') document.body.setAttribute('data-theme', 'dark');
+
     </script>
+    
+    <!-- Bootstrap JS for Tabs -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
