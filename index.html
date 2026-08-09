@@ -3,703 +3,355 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RM Steel - Qiymət Təklifi İdarəetmə Sistemi</title>
-    
-    <!-- Bootstrap 5 & FontAwesome -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
-    <!-- Supabase JS -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    
-    <!-- PDF & Excel Libraries -->
+    <title>Qiymət Təklifi Sistemi</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-
     <style>
         :root {
-            --glass-bg: rgba(255, 255, 255, 0.7);
-            --glass-border: rgba(255, 255, 255, 0.4);
-            --text-color: #333;
-            --bg-image: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            --bg: #f4f6f8; --side-bg: #2c3e50; --side-text: #ecf0f1; --main-bg: #fff;
+            --text: #333; --border: #ddd; --primary: #3498db; --hover: #2980b9;
+            --danger: #e74c3c; --success: #2ecc71; --doc-bg: #fff;
         }
         [data-theme="dark"] {
-            --glass-bg: rgba(30, 30, 30, 0.7);
-            --glass-border: rgba(255, 255, 255, 0.1);
-            --text-color: #f1f1f1;
-            --bg-image: linear-gradient(135deg, #232526 0%, #414345 100%);
+            --bg: #121212; --side-bg: #1e1e1e; --side-text: #ddd; --main-bg: #1e1e1e;
+            --text: #eee; --border: #444; --primary: #375a7f; --hover: #2b4764;
+            --doc-bg: #2a2a2a;
         }
-        body {
-            background: var(--bg-image);
-            color: var(--text-color);
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            min-height: 100vh;
-            transition: background 0.5s;
-        }
-        .glass-panel {
-            background: var(--glass-bg);
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-            border: 1px solid var(--glass-border);
-            border-radius: 15px;
-            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
-            padding: 20px;
-            margin-bottom: 20px;
-        }
-        .glass-input {
-            background: rgba(255, 255, 255, 0.5);
-            border: 1px solid var(--glass-border);
-            color: var(--text-color);
-        }
-        [data-theme="dark"] .glass-input { background: rgba(0, 0, 0, 0.3); color: white; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { display: flex; height: 100vh; background: var(--bg); color: var(--text); overflow: hidden; transition: background 0.3s; }
         
-        /* Auth Screen */
-        #authScreen { display: flex; height: 100vh; align-items: center; justify-content: center; }
-        #appScreen { display: none; }
+        /* Layout */
+        .sidebar { width: 300px; background: var(--side-bg); color: var(--side-text); display: flex; flex-direction: column; transition: 0.3s; }
+        .sidebar-header { padding: 20px; font-size: 1.2rem; font-weight: bold; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .search-box { padding: 15px; }
+        .search-box input { width: 100%; padding: 8px; border: none; border-radius: 4px; outline: none; }
+        .quote-list { flex: 1; overflow-y: auto; padding: 0 10px; }
+        .quote-item { padding: 15px; margin-bottom: 5px; background: rgba(255,255,255,0.05); border-radius: 5px; cursor: pointer; transition: 0.2s; }
+        .quote-item:hover, .quote-item.active { background: var(--primary); }
+        .quote-item .id { font-weight: bold; font-size: 0.9rem; }
+        .quote-item .client { font-size: 0.8rem; opacity: 0.8; margin-top: 5px; }
         
-        /* Print Styles for PDF Quality */
-        #printArea { background: white !important; color: black !important; border-radius: 0; padding: 40px; }
-        .no-print { display: block; }
-        .table-glass th, .table-glass td { border-color: rgba(0,0,0,0.1); }
+        .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+        .toolbar { padding: 10px 20px; background: var(--main-bg); border-bottom: 1px solid var(--border); display: flex; gap: 10px; flex-wrap: wrap; align-items: center; justify-content: space-between; }
+        .toolbar-group { display: flex; gap: 10px; flex-wrap: wrap; }
         
-        .loader { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 9999; }
-        .offline-badge { display: none; }
+        .btn { padding: 8px 15px; border: none; border-radius: 5px; cursor: pointer; background: var(--primary); color: #fff; font-size: 0.9rem; transition: transform 0.1s, opacity 0.2s; }
+        .btn:active { transform: scale(0.95); }
+        .btn:hover { opacity: 0.9; }
+        .btn.danger { background: var(--danger); }
+        .btn.success { background: var(--success); }
+        .btn.icon { padding: 8px 10px; }
+        
+        .doc-wrapper { flex: 1; overflow-y: auto; padding: 20px; display: flex; justify-content: center; }
+        .document { width: 100%; max-width: 800px; background: var(--doc-bg); padding: 40px; box-shadow: 0 0 10px rgba(0,0,0,0.1); border-radius: 5px; }
+        
+        /* Document Styles */
+        .doc-header { display: flex; justify-content: space-between; margin-bottom: 30px; border-bottom: 2px solid var(--primary); padding-bottom: 20px; }
+        .company-info { max-width: 50%; }
+        .company-info img { max-height: 80px; max-width: 200px; margin-bottom: 10px; object-fit: contain; cursor: pointer; }
+        .company-info .c-name { font-size: 1.5rem; font-weight: bold; color: var(--primary); margin-bottom: 5px; }
+        .doc-meta { text-align: right; }
+        .doc-meta h1 { color: var(--primary); font-size: 2rem; margin-bottom: 10px; letter-spacing: 1px; }
+        
+        .client-section { margin-bottom: 30px; background: rgba(0,0,0,0.02); padding: 15px; border-left: 4px solid var(--primary); border-radius: 0 5px 5px 0; }
+        .input-group { margin-bottom: 8px; display: flex; align-items: center; }
+        .input-group label { width: 100px; font-weight: bold; font-size: 0.9rem; }
+        
+        input, textarea, select { width: 100%; padding: 6px; border: 1px solid var(--border); border-radius: 4px; background: transparent; color: var(--text); outline: none; }
+        input.transparent { border: 1px dashed transparent; padding: 2px; }
+        input.transparent:hover, input.transparent:focus { border-color: var(--border); }
+        
+        .table-responsive { overflow-x: auto; margin-bottom: 20px; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { border: 1px solid var(--border); padding: 8px; text-align: left; font-size: 0.9rem; }
+        th { background: var(--primary); color: #fff; font-weight: 500; }
+        td input { border: none; width: 100%; padding: 4px; background: transparent; color: var(--text); }
+        .col-num { width: 30px; cursor: grab; text-align: center; }
+        .col-action { width: 40px; text-align: center; }
+        .btn-del { color: var(--danger); background: none; border: none; cursor: pointer; font-size: 1.2rem; }
+        
+        .totals { display: flex; justify-content: flex-end; margin-top: 20px; }
+        .totals-box { width: 300px; border: 1px solid var(--border); border-radius: 5px; }
+        .total-row { display: flex; justify-content: space-between; padding: 10px 15px; border-bottom: 1px solid var(--border); }
+        .total-row:last-child { border-bottom: none; font-weight: bold; background: rgba(52, 152, 219, 0.1); font-size: 1.1rem; }
+        
+        /* Modal & Toasts */
+        .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; z-index: 1000; }
+        .modal.active { display: flex; }
+        .modal-content { background: var(--main-bg); padding: 25px; border-radius: 8px; width: 400px; box-shadow: 0 5px 15px rgba(0,0,0,0.3); }
+        .modal-content h3 { margin-bottom: 15px; }
+        
+        #toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; }
+        .toast { background: var(--success); color: #fff; padding: 10px 20px; border-radius: 5px; box-shadow: 0 3px 6px rgba(0,0,0,0.2); animation: fadeIn 0.3s, fadeOut 0.3s 2.7s forwards; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes fadeOut { to { opacity: 0; transform: translateY(-10px); } }
+        
+        /* Print & PDF Mode */
+        @media print, .pdf-mode {
+            body { background: #fff !important; }
+            .sidebar, .toolbar, .btn-add, .col-action, .btn-del { display: none !important; }
+            .main { overflow: visible; display: block; }
+            .doc-wrapper { padding: 0; display: block; overflow: visible; }
+            .document { max-width: 100%; box-shadow: none; padding: 0; margin: 0; border-radius: 0; }
+            input.transparent { border: none !important; }
+        }
+        
+        @media (max-width: 768px) {
+            body { flex-direction: column; }
+            .sidebar { width: 100%; height: 200px; flex-shrink: 0; }
+            .toolbar { flex-direction: column; align-items: flex-start; }
+            .company-info img { max-width: 120px; }
+            .doc-header { flex-direction: column; gap: 20px; }
+            .doc-meta { text-align: left; }
+        }
     </style>
 </head>
 <body>
 
-    <!-- Yüklənmə İkonu -->
-    <div class="loader spinner-border text-primary" role="status" id="globalLoader"></div>
+    <!-- Autocomplete Datalists -->
+    <datalist id="clients-list"></datalist>
+    <datalist id="products-list"></datalist>
 
-    <!-- AVTORİZASİYA SƏHİFƏSİ -->
-    <div id="authScreen" class="container">
-        <div class="glass-panel text-center" style="max-width: 400px; width: 100%;">
-            <h2><i class="fas fa-shield-alt text-primary"></i> RM Steel Giriş</h2>
-            <p class="text-muted">Sistemə daxil olun və ya qeydiyyatdan keçin</p>
-            <div id="authAlert" class="alert d-none"></div>
-            
-            <input type="email" id="email" class="form-control glass-input mb-3" placeholder="Email adresi">
-            <input type="password" id="password" class="form-control glass-input mb-3" placeholder="Şifrə">
-            
-            <button onclick="login()" class="btn btn-primary w-100 mb-2">Daxil ol</button>
-            <button onclick="register()" class="btn btn-outline-secondary w-100 mb-2">Qeydiyyat</button>
-            <a href="#" onclick="resetPassword()" class="text-sm">Şifrəni unutmusunuz?</a>
+    <div class="sidebar hide-print">
+        <div class="sidebar-header">Qaimə Sistemi</div>
+        <div class="search-box">
+            <button class="btn" style="width:100%; margin-bottom:10px;" onclick="createNewQuote()">+ Yeni Qaimə</button>
+            <input type="text" id="searchInput" placeholder="Axtarış (Müştəri, №, Mal)..." oninput="renderSidebar()">
         </div>
+        <div class="quote-list" id="quoteList"></div>
     </div>
 
-    <!-- ƏSAS TƏTBİQ SƏHİFƏSİ -->
-    <div id="appScreen" class="container-fluid py-4">
-        
-        <!-- Navbar -->
-        <nav class="glass-panel d-flex justify-content-between align-items-center mb-4">
-            <h4 class="m-0"><i class="fas fa-layer-group"></i> İdarəetmə Paneli</h4>
-            <div>
-                <span class="badge bg-danger offline-badge me-2" id="offlineBadge"><i class="fas fa-wifi"></i> Offline</span>
-                <button class="btn btn-sm btn-outline-info me-2" onclick="toggleTheme()"><i class="fas fa-moon"></i></button>
-                <button class="btn btn-sm btn-danger" onclick="logout()"><i class="fas fa-sign-out-alt"></i> Çıxış</button>
+    <div class="main">
+        <div class="toolbar hide-print">
+            <div class="toolbar-group">
+                <button class="btn success" onclick="saveCurrentQuote(true)">Yadda Saxla</button>
+                <button class="btn icon" onclick="undo()" title="Geri (Undo)">↩️</button>
+                <button class="btn icon" onclick="redo()" title="İrəli (Redo)">↪️</button>
+                <button class="btn" onclick="duplicateQuote()">Kopyala</button>
+                <button class="btn danger" onclick="deleteCurrentQuote()">Sil</button>
             </div>
-        </nav>
+            <div class="toolbar-group">
+                <button class="btn" onclick="window.print()">Çap Et</button>
+                <button class="btn" onclick="exportPDF()">PDF İxrac</button>
+                <button class="btn" onclick="exportExcel()">Excel İxrac</button>
+                <button class="btn" onclick="openSettings()">Ayarlar</button>
+                <button class="btn icon" onclick="toggleTheme()" title="Gecə/Gündüz">🌓</button>
+                <button class="btn icon" onclick="exportJSON()" title="Yedəklə (JSON)">💾</button>
+                <button class="btn icon" onclick="document.getElementById('importFile').click()" title="Bərpa Et (JSON)">📂</button>
+                <input type="file" id="importFile" accept=".json" style="display:none" onchange="importJSON(event)">
+            </div>
+        </div>
 
-        <!-- Tabs -->
-        <ul class="nav nav-pills mb-3" id="pills-tab" role="tablist">
-            <li class="nav-item"><button class="nav-link active glass-panel py-2 px-4" data-bs-toggle="pill" data-bs-target="#tab-editor">📝 Yeni / Redaktə</button></li>
-            <li class="nav-item"><button class="nav-link glass-panel py-2 px-4 mx-2" data-bs-toggle="pill" data-bs-target="#tab-list" onclick="loadQuotations()">📋 Təkliflər Siyahısı</button></li>
-            <li class="nav-item"><button class="nav-link glass-panel py-2 px-4" data-bs-toggle="pill" data-bs-target="#tab-audit" onclick="loadAuditLogs()">🔍 Audit (Tarixçə)</button></li>
-        </ul>
-
-        <div class="tab-content">
-            <!-- TAB 1: EDİTOR -->
-            <div class="tab-pane fade show active" id="tab-editor">
-                
-                <div class="glass-panel mb-3 d-flex justify-content-between flex-wrap gap-2">
-                    <button class="btn btn-success" onclick="saveQuotation()"><i class="fas fa-save"></i> Yadda Saxla</button>
-                    <button class="btn btn-primary" onclick="generatePDF()"><i class="fas fa-file-pdf"></i> PDF Yüklə</button>
-                    <button class="btn btn-success" onclick="exportExcel()"><i class="fas fa-file-excel"></i> Excel İxrac</button>
-                    <input type="file" id="excelUpload" class="d-none" accept=".xlsx, .xls" onchange="importExcel(event)">
-                    <button class="btn btn-outline-success" onclick="document.getElementById('excelUpload').click()"><i class="fas fa-file-import"></i> Excel İdxal</button>
-                    <button class="btn btn-warning" onclick="exportJSON()"><i class="fas fa-code"></i> JSON İxrac</button>
-                    <button class="btn btn-secondary" onclick="newQuotation()"><i class="fas fa-plus"></i> Yeni Sənəd</button>
-                    <small class="text-muted align-self-center ms-auto" id="autoSaveStatus">Avtomatik yaddaş aktivdir</small>
+        <div class="doc-wrapper">
+            <div class="document" id="print-area">
+                <div class="doc-header">
+                    <div class="company-info">
+                        <img id="c_logo_img" src="" alt="Logo" style="display:none;" onclick="openSettings()">
+                        <div class="c-name"><input type="text" id="c_name" class="transparent" placeholder="Şirkət Adı" oninput="autoSave()"></div>
+                        <div><input type="text" id="c_address" class="transparent" placeholder="Ünvan" oninput="autoSave()"></div>
+                        <div><input type="text" id="c_phone" class="transparent" placeholder="Telefon" oninput="autoSave()"></div>
+                        <div><input type="text" id="c_email" class="transparent" placeholder="Email" oninput="autoSave()"></div>
+                    </div>
+                    <div class="doc-meta">
+                        <h1>QİYMƏT TƏKLİFİ</h1>
+                        <div class="input-group" style="justify-content: flex-end;">
+                            <label>Tarix:</label>
+                            <input type="date" id="q_date" class="transparent" style="width:auto;" oninput="autoSave()">
+                        </div>
+                        <div class="input-group" style="justify-content: flex-end;">
+                            <label>Təklif №:</label>
+                            <input type="text" id="q_id" class="transparent" style="width:auto; font-weight:bold; color:var(--primary);" readonly>
+                        </div>
+                    </div>
                 </div>
 
-                <div class="glass-panel" id="printContainer" style="overflow-x: auto;">
-                    <div id="printArea">
-                        <table width="100%" class="mb-4">
+                <div class="client-section">
+                    <div class="input-group">
+                        <label>Müştəri Adı:</label>
+                        <input type="text" id="cl_name" list="clients-list" class="transparent" placeholder="Müştəri adını daxil edin..." oninput="handleClientInput(this.value)">
+                    </div>
+                    <div class="input-group">
+                        <label>Telefon:</label>
+                        <input type="text" id="cl_phone" class="transparent" placeholder="..." oninput="autoSave()">
+                    </div>
+                    <div class="input-group">
+                        <label>Ünvan:</label>
+                        <input type="text" id="cl_address" class="transparent" placeholder="..." oninput="autoSave()">
+                    </div>
+                    <div class="input-group">
+                        <label>Qeyd:</label>
+                        <input type="text" id="cl_note" class="transparent" placeholder="..." oninput="autoSave()">
+                    </div>
+                </div>
+
+                <div class="table-responsive">
+                    <table id="items-table">
+                        <thead>
                             <tr>
-                                <td>
-                                    <h2 style="color: #0d6efd; font-weight: bold;">RM Steel MMC</h2>
-                                    <p style="margin: 0; font-size: 14px;"><i>Əsl poladın ünvanı!</i><br>
-                                    Bakı ş., Dərnəgül pr., Grand Bazar<br>
-                                    Email: info@rmsteel.az | Tel: +994 10 600 09 01</p>
-                                </td>
-                                <td align="right" valign="top">
-                                    <h1 style="margin:0; font-size: 28px;">QİYMƏT TƏKLİFİ</h1>
-                                    <p style="margin: 5px 0 0 0; font-size: 15px;">
-                                    Tarix: <input type="date" id="docDate" class="glass-input auto-save"><br>
-                                    Təklif №: <input type="text" id="docNo" class="glass-input auto-save" placeholder="Məs: RM-001" style="margin-top: 5px;"></p>
-                                </td>
+                                <th class="col-num">#</th>
+                                <th>Malın adı</th>
+                                <th style="width:80px;">Ölçü</th>
+                                <th style="width:80px;">Miqdar</th>
+                                <th style="width:100px;">Qiymət</th>
+                                <th style="width:100px;">Məbləğ</th>
+                                <th>Qeydlər</th>
+                                <th class="col-action"></th>
                             </tr>
-                        </table>
-
-                        <p><b>Müştəri:</b> <input type="text" id="clientName" class="glass-input auto-save form-control" style="max-width: 400px; display: inline-block;"></p>
-                        
-                        <table class="table table-bordered table-glass" style="min-width: 800px;">
-                            <thead class="table-light">
-                                <tr>
-                                    <th width="5%">№</th>
-                                    <th width="30%">Malların adı</th>
-                                    <th width="10%">Ölçü vahidi</th>
-                                    <th width="10%">Miqdar</th>
-                                    <th width="15%">Qiymət (AZN)</th>
-                                    <th width="15%">Məbləğ (AZN)</th>
-                                    <th width="10%">Qeydlər</th>
-                                    <th width="5%" class="no-print text-center"><i class="fas fa-cog"></i></th>
-                                </tr>
-                            </thead>
-                            <tbody id="rows">
-                                <!-- Sətirlər bura düşəcək -->
-                            </tbody>
-                            <tfoot>
-                                <tr>
-                                    <td colspan="5" align="right"><b>Ümumi Cəmi:</b></td>
-                                    <td colspan="3"><b id="totalAmount" style="font-size: 18px;">0.00</b> AZN</td>
-                                </tr>
-                            </tfoot>
-                        </table>
-                        <button class="btn btn-sm btn-outline-primary no-print" onclick="addRow()"><i class="fas fa-plus"></i> Sətir əlavə et</button>
-                    </div>
+                        </thead>
+                        <tbody id="items-tbody"></tbody>
+                    </table>
+                    <button class="btn btn-add" style="margin-top: 10px;" onclick="addRow()">+ Sətir Əlavə Et</button>
                 </div>
-            </div>
 
-            <!-- TAB 2: SİYAHI -->
-            <div class="tab-pane fade" id="tab-list">
-                <div class="glass-panel">
-                    <div class="row mb-3">
-                        <div class="col-md-3">
-                            <input type="text" id="searchClient" class="form-control glass-input" placeholder="Müştəri və ya № axtar..." onkeyup="filterList()">
+                <div class="totals">
+                    <div class="totals-box">
+                        <div class="total-row">
+                            <span>Cəmi:</span>
+                            <span id="t_subtotal">0.00</span>
                         </div>
-                        <div class="col-md-9 text-end">
-                            <div class="btn-group">
-                                <button class="btn btn-outline-primary active" onclick="filterDate('all')">Hamısı</button>
-                                <button class="btn btn-outline-primary" onclick="filterDate('today')">Bugün</button>
-                                <button class="btn btn-outline-primary" onclick="filterDate('week')">Bu Həftə</button>
-                                <button class="btn btn-outline-primary" onclick="filterDate('month')">Bu Ay</button>
-                            </div>
+                        <div class="total-row">
+                            <span>Yekun:</span>
+                            <span id="t_total">0.00</span>
                         </div>
-                    </div>
-                    <div class="table-responsive">
-                        <table class="table table-hover table-glass">
-                            <thead>
-                                <tr>
-                                    <th>Təklif №</th>
-                                    <th>Müştəri</th>
-                                    <th>Tarix</th>
-                                    <th>Məbləğ</th>
-                                    <th>Son Yenilənmə</th>
-                                    <th>Əməliyyatlar</th>
-                                </tr>
-                            </thead>
-                            <tbody id="listBody"></tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-
-            <!-- TAB 3: AUDİT -->
-            <div class="tab-pane fade" id="tab-audit">
-                <div class="glass-panel">
-                    <h5>Tarixçə və Dəyişikliklər</h5>
-                    <div class="table-responsive">
-                        <table class="table table-sm table-glass">
-                            <thead>
-                                <tr>
-                                    <th>Tarix / Saat</th>
-                                    <th>Əməliyyat</th>
-                                    <th>Detallar</th>
-                                </tr>
-                            </thead>
-                            <tbody id="auditBody"></tbody>
-                        </table>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- SCRIPT HİSSƏSİ -->
+    <!-- Settings Modal -->
+    <div class="modal" id="settingsModal">
+        <div class="modal-content">
+            <h3>Şirkət Ayarları</h3>
+            <div class="input-group"><label>Logo:</label><input type="file" accept="image/*" onchange="uploadLogo(event)"></div>
+            <div class="input-group"><label>Şirkət Adı:</label><input type="text" id="set_name"></div>
+            <div class="input-group"><label>Ünvan:</label><input type="text" id="set_addr"></div>
+            <div class="input-group"><label>Telefon:</label><input type="text" id="set_phone"></div>
+            <div class="input-group"><label>Email:</label><input type="text" id="set_email"></div>
+            <div style="display:flex; gap:10px; margin-top:20px;">
+                <button class="btn success" style="flex:1" onclick="saveSettings()">Yadda Saxla</button>
+                <button class="btn" style="flex:1" onclick="closeSettings()">Bağla</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast-container"></div>
+
     <script>
-        /* ==========================================
-           1. SUPABASE QURAŞDIRILMASI (BURANI DƏYİŞİN)
-           ========================================== */
-        const SUPABASE_URL = 'YOUR_SUPABASE_URL'; // BURA YAZIN (məs: https://xyz.supabase.co)
-        const SUPABASE_KEY = 'YOUR_SUPABASE_ANON_KEY'; // BURA YAZIN (anon public key)
-        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        // IndexedDB Wrapper
+        const DB_NAME = 'QaimaSystemDB', DB_VERSION = 1;
+        let db;
+        const initDB = () => new Promise((resolve, reject) => {
+            const req = indexedDB.open(DB_NAME, DB_VERSION);
+            req.onupgradeneeded = e => {
+                let db = e.target.result;
+                if(!db.objectStoreNames.contains('quotes')) db.createObjectStore('quotes', {keyPath: 'id'});
+                if(!db.objectStoreNames.contains('clients')) db.createObjectStore('clients', {keyPath: 'name'});
+                if(!db.objectStoreNames.contains('products')) db.createObjectStore('products', {keyPath: 'name'});
+                if(!db.objectStoreNames.contains('settings')) db.createObjectStore('settings', {keyPath: 'id'});
+            };
+            req.onsuccess = e => { db = e.target.result; resolve(db); };
+            req.onerror = e => reject(e);
+        });
+        const dbOp = (storeName, mode, op, data) => new Promise((resolve, reject) => {
+            const tx = db.transaction(storeName, mode);
+            const store = tx.objectStore(storeName);
+            let req;
+            if(op === 'put') req = store.put(data);
+            else if(op === 'get') req = store.get(data);
+            else if(op === 'getAll') req = store.getAll();
+            else if(op === 'delete') req = store.delete(data);
+            else if(op === 'clear') req = store.clear();
+            req.onsuccess = () => resolve(req.result);
+            req.onerror = () => reject(req.error);
+        });
 
-        /* Dəyişənlər */
-        let currentUser = null;
-        let currentDocId = null; 
+        // State variables
+        let quotes = [], clients = [], products = [], settings = {};
+        let currentQuoteId = null;
         let autoSaveTimer = null;
-        let offlineQueue = JSON.parse(localStorage.getItem('offlineQueue')) || [];
+        let historyStack = [], historyIndex = -1;
 
-        /* ==========================================
-           2. SİSTEM BAŞLADIQDA İCRA OLUNANLAR
-           ========================================== */
+        // Utility
+        const qs = s => document.querySelector(s);
+        const showToast = msg => {
+            const t = document.createElement('div'); t.className = 'toast'; t.innerText = msg;
+            qs('#toast-container').appendChild(t);
+            setTimeout(() => t.remove(), 3000);
+        };
+        const getToday = () => new Date().toISOString().split('T')[0];
+
+        // Init App
         window.onload = async () => {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (session) {
-                currentUser = session.user;
-                showApp();
-                await syncOfflineData();
-                loadLastSession();
-            }
+            await initDB();
+            settings = await dbOp('settings', 'readonly', 'get', 'main') || { id: 'main', logo: '', name: '', address: '', phone: '', email: '', lastQuoteNum: 0 };
+            quotes = await dbOp('quotes', 'readonly', 'getAll');
+            clients = await dbOp('clients', 'readonly', 'getAll');
+            products = await dbOp('products', 'readonly', 'getAll');
             
-            // Auto-save event listeners
-            document.getElementById('printContainer').addEventListener('input', (e) => {
-                if(e.target.classList.contains('auto-save') || e.target.closest('#rows')) {
-                    if(e.target.classList.contains('q') || e.target.classList.contains('p')) calc();
-                    clearTimeout(autoSaveTimer);
-                    document.getElementById('autoSaveStatus').innerText = "Yazılır...";
-                    document.getElementById('autoSaveStatus').style.color = "orange";
-                    autoSaveTimer = setTimeout(() => saveQuotation(true), 2000); // 2 saniyə sonra avtomatik save
-                }
-            });
+            // Theme setup
+            if(localStorage.getItem('theme') === 'dark') document.body.setAttribute('data-theme', 'dark');
 
-            // Offline/Online dinləyiciləri
-            window.addEventListener('offline', () => document.getElementById('offlineBadge').style.display = 'inline-block');
-            window.addEventListener('online', async () => {
-                document.getElementById('offlineBadge').style.display = 'none';
-                await syncOfflineData();
-            });
-            if(!navigator.onLine) document.getElementById('offlineBadge').style.display = 'inline-block';
+            updateDatalists();
+            applySettingsToUI();
+            
+            quotes.sort((a,b) => new Date(b.date) - new Date(a.date));
+            if(quotes.length > 0) loadQuote(quotes[0].id);
+            else createNewQuote();
+            
+            renderSidebar();
         };
 
-        /* ==========================================
-           3. AUTH (GİRİŞ / QEYDİYYAT)
-           ========================================== */
-        function showAlert(msg, isError=false) {
-            const el = document.getElementById('authAlert');
-            el.className = `alert alert-${isError?'danger':'success'}`;
-            el.innerText = msg;
-            el.classList.remove('d-none');
-            setTimeout(()=> el.classList.add('d-none'), 4000);
-        }
+        // Theme Toggle
+        const toggleTheme = () => {
+            const isDark = document.body.getAttribute('data-theme') === 'dark';
+            document.body.setAttribute('data-theme', isDark ? 'light' : 'dark');
+            localStorage.setItem('theme', isDark ? 'light' : 'dark');
+        };
 
-        function showLoader(show) { document.getElementById('globalLoader').style.display = show ? 'block' : 'none'; }
-
-        async function login() {
-            showLoader(true);
-            const email = document.getElementById('email').value;
-            const password = document.getElementById('password').value;
-            const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-            showLoader(false);
-            if (error) showAlert(error.message, true);
-            else { currentUser = data.user; showApp(); loadLastSession(); }
-        }
-
-        async function register() {
-            showLoader(true);
-            const email = document.getElementById('email').value;
-            const password = document.getElementById('password').value;
-            const { data, error } = await supabase.auth.signUp({ email, password });
-            showLoader(false);
-            if (error) showAlert(error.message, true);
-            else showAlert("Qeydiyyat uğurlu! E-poçtunuzu təsdiqləyin.");
-        }
-
-        async function logout() {
-            await supabase.auth.signOut();
-            currentUser = null;
-            document.getElementById('appScreen').style.display = 'none';
-            document.getElementById('authScreen').style.display = 'flex';
-        }
-
-        async function resetPassword() {
-            const email = prompt("Şifrəni sıfırlamaq üçün emailinizi yazın:");
-            if(email) {
-                const { error } = await supabase.auth.resetPasswordForEmail(email);
-                if(error) alert(error.message); else alert("Sıfırlama linki göndərildi.");
-            }
-        }
-
-        function showApp() {
-            document.getElementById('authScreen').style.display = 'none';
-            document.getElementById('appScreen').style.display = 'block';
-            document.getElementById('docDate').valueAsDate = new Date();
-        }
-
-        /* ==========================================
-           4. CƏDVƏL FUNKSİYALARI (HESABLAMA / ƏLAVƏ)
-           ========================================== */
-        function addRow(name='', unit='Ədəd', q=1, p=0, note='') {
-            const tbody = document.getElementById('rows');
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td align="center" class="num fw-bold"></td>
-                <td><input type="text" class="form-control glass-input auto-save item-name" value="${name}"></td>
-                <td><input type="text" class="form-control glass-input auto-save item-unit" value="${unit}"></td>
-                <td><input type="number" step="any" class="form-control glass-input auto-save q" value="${q}"></td>
-                <td><input type="number" step="any" class="form-control glass-input auto-save p" value="${p}"></td>
-                <td class="align-middle fw-bold a">0.00</td>
-                <td><input type="text" class="form-control glass-input auto-save item-note" value="${note}"></td>
-                <td class="no-print text-center align-middle">
-                    <button class="btn btn-sm btn-danger" onclick="delRow(this)"><i class="fas fa-trash"></i></button>
-                </td>
-            `;
-            tbody.appendChild(tr);
-            renumber();
-            calc();
-        }
-
-        function delRow(btn) {
-            btn.closest('tr').remove();
-            renumber();
-            calc();
-            saveQuotation(true); // Auto-save on delete
-        }
-
-        function renumber() {
-            document.querySelectorAll('#rows tr').forEach((tr, i) => { tr.querySelector('.num').innerText = i + 1; });
-        }
-
-        function calc() {
-            let sum = 0;
-            document.querySelectorAll('#rows tr').forEach(tr => {
-                let q = parseFloat(tr.querySelector('.q').value) || 0;
-                let p = parseFloat(tr.querySelector('.p').value) || 0;
-                let a = q * p;
-                tr.querySelector('.a').innerText = a.toFixed(2);
-                sum += a;
-            });
-            document.getElementById('totalAmount').innerText = sum.toFixed(2);
-            return sum;
-        }
-
-        function getFormData() {
-            let items = [];
-            document.querySelectorAll('#rows tr').forEach(tr => {
-                items.push({
-                    name: tr.querySelector('.item-name').value,
-                    unit: tr.querySelector('.item-unit').value,
-                    q: tr.querySelector('.q').value,
-                    p: tr.querySelector('.p').value,
-                    note: tr.querySelector('.item-note').value
-                });
-            });
-            return {
-                doc_no: document.getElementById('docNo').value || 'Sənədsiz',
-                client_name: document.getElementById('clientName').value || 'Adsız Müştəri',
-                doc_date: document.getElementById('docDate').value,
-                items: items,
-                total_amount: calc()
-            };
-        }
-
-        /* ==========================================
-           5. BAZA İLƏ ƏMƏLİYYATLAR (CRUD & OFFLINE)
-           ========================================== */
-        async function saveQuotation(isAuto = false) {
-            const data = getFormData();
-            if(!data.items.length) return; // Boş sənədi yadda saxlamayaq
-
-            // LocalStorage hər ehtimala qarşı daimi yenilənir
-            localStorage.setItem('lastSession', JSON.stringify({id: currentDocId, ...data}));
-
-            if (!navigator.onLine) {
-                // Offline rejim
-                offlineQueue.push({ action: currentDocId ? 'UPDATE' : 'INSERT', id: currentDocId, data });
-                localStorage.setItem('offlineQueue', JSON.stringify(offlineQueue));
-                updateStatus(isAuto, "Offline yadda saxlanıldı", "red");
-                return;
-            }
-
-            const payload = {
-                user_id: currentUser.id,
-                doc_no: data.doc_no,
-                client_name: data.client_name,
-                doc_date: data.doc_date,
-                items: data.items,
-                total_amount: data.total_amount,
-                updated_at: new Date()
-            };
-
-            showLoader(!isAuto);
-            let res;
-            if (currentDocId) {
-                res = await supabase.from('quotations').update(payload).eq('id', currentDocId).select();
-                logAudit('Redaktə', `${data.doc_no} nömrəli təklif yeniləndi.`);
+        // Settings Logic
+        const applySettingsToUI = () => {
+            qs('#c_name').value = settings.name || '';
+            qs('#c_address').value = settings.address || '';
+            qs('#c_phone').value = settings.phone || '';
+            qs('#c_email').value = settings.email || '';
+            if(settings.logo) {
+                qs('#c_logo_img').src = settings.logo;
+                qs('#c_logo_img').style.display = 'block';
             } else {
-                res = await supabase.from('quotations').insert([payload]).select();
-                if(res.data) {
-                    currentDocId = res.data[0].id;
-                    logAudit('Yeni', `${data.doc_no} nömrəli təklif yaradıldı.`);
-                }
+                qs('#c_logo_img').style.display = 'none';
             }
-            showLoader(false);
-
-            if (res.error) {
-                if(!isAuto) alert("Xəta: " + res.error.message);
-                updateStatus(isAuto, "Xəta baş verdi", "red");
-            } else {
-                updateStatus(isAuto, "Bazada saxlanıldı", "green");
-                if(!isAuto) alert("Uğurla yadda saxlanıldı!");
+        };
+        const openSettings = () => {
+            qs('#set_name').value = settings.name || '';
+            qs('#set_addr').value = settings.address || '';
+            qs('#set_phone').value = settings.phone || '';
+            qs('#set_email').value = settings.email || '';
+            qs('#settingsModal').classList.add('active');
+        };
+        const closeSettings = () => qs('#settingsModal').classList.remove('active');
+        const uploadLogo = e => {
+            const file = e.target.files[0];
+            if(file) {
+                const reader = new FileReader();
+                reader.onload = e => { settings.logo = e.target.result; };
+                reader.readAsDataURL(file);
             }
-        }
+        };
+        const saveSettings = async () => {
+            settings.name = qs('#set_name').value;
+            settings.address = qs('#set_addr').value;
+            settings.phone = qs('#set_phone').value;
+            settings.email = qs('#set_email').value;
+            await dbOp('settings', 'readwrite', 'put', settings);
+            applySettingsToUI();
+            closeSettings();
+            showToast('Ayarlar yadda saxlanıldı');
+        };
 
-        function updateStatus(isAuto, msg, color) {
-            const el = document.getElementById('autoSaveStatus');
-            el.innerText = (isAuto ? "Avto: " : "") + msg + " (" + new Date().toLocaleTimeString() + ")";
-            el.style.color = color;
-        }
-
-        async function syncOfflineData() {
-            if (offlineQueue.length === 0) return;
-            for (let item of offlineQueue) {
-                const p = { user_id: currentUser.id, ...item.data, updated_at: new Date() };
-                if (item.action === 'UPDATE' && item.id) {
-                    await supabase.from('quotations').update(p).eq('id', item.id);
-                } else {
-                    await supabase.from('quotations').insert([p]);
-                }
-            }
-            offlineQueue = [];
-            localStorage.removeItem('offlineQueue');
-            alert("Offline məlumatlar bazaya sinxronizasiya edildi.");
-        }
-
-        function newQuotation() {
-            currentDocId = null;
-            document.getElementById('docNo').value = '';
-            document.getElementById('clientName').value = '';
-            document.getElementById('docDate').valueAsDate = new Date();
-            document.getElementById('rows').innerHTML = '';
-            addRow();
-            localStorage.removeItem('lastSession');
-            document.getElementById('autoSaveStatus').innerText = "Yeni sənəd";
-        }
-
-        function loadLastSession() {
-            const saved = localStorage.getItem('lastSession');
-            if (saved) {
-                const data = JSON.parse(saved);
-                currentDocId = data.id;
-                document.getElementById('docNo').value = data.doc_no;
-                document.getElementById('clientName').value = data.client_name;
-                document.getElementById('docDate').value = data.doc_date;
-                document.getElementById('rows').innerHTML = '';
-                data.items.forEach(i => addRow(i.name, i.unit, i.q, i.p, i.note));
-            } else {
-                addRow();
-            }
-        }
-
-        /* ==========================================
-           6. SİYAHI VƏ AXTARIŞ
-           ========================================== */
-        let allQuotations = [];
-        
-        async function loadQuotations() {
-            showLoader(true);
-            const { data, error } = await supabase.from('quotations').select('*').order('updated_at', { ascending: false });
-            showLoader(false);
-            if (data) {
-                allQuotations = data;
-                renderList(data);
-            }
-        }
-
-        function renderList(data) {
-            const tbody = document.getElementById('listBody');
-            tbody.innerHTML = '';
-            data.forEach(q => {
-                let d = new Date(q.updated_at).toLocaleString('az-AZ');
-                tbody.innerHTML += `
-                    <tr>
-                        <td class="fw-bold">${q.doc_no}</td>
-                        <td>${q.client_name}</td>
-                        <td>${q.doc_date}</td>
-                        <td><b>${q.total_amount} AZN</b></td>
-                        <td style="font-size:12px;">${d}</td>
-                        <td>
-                            <button class="btn btn-sm btn-primary" onclick="openQuotation('${q.id}')"><i class="fas fa-folder-open"></i> Aç</button>
-                            <button class="btn btn-sm btn-danger" onclick="deleteQuotation('${q.id}', '${q.doc_no}')"><i class="fas fa-trash"></i></button>
-                        </td>
-                    </tr>
-                `;
-            });
-        }
-
-        function filterList() {
-            const text = document.getElementById('searchClient').value.toLowerCase();
-            const filtered = allQuotations.filter(q => 
-                q.client_name.toLowerCase().includes(text) || 
-                q.doc_no.toLowerCase().includes(text)
-            );
-            renderList(filtered);
-        }
-
-        function filterDate(period) {
-            document.querySelectorAll('#tab-list .btn-group .btn').forEach(b => b.classList.remove('active'));
-            event.target.classList.add('active');
-            
-            const now = new Date();
-            let filtered = allQuotations;
-
-            if (period === 'today') {
-                const today = now.toISOString().split('T')[0];
-                filtered = allQuotations.filter(q => q.doc_date === today);
-            } else if (period === 'week') {
-                const pastWeek = new Date(now.setDate(now.getDate() - 7));
-                filtered = allQuotations.filter(q => new Date(q.doc_date) >= pastWeek);
-            } else if (period === 'month') {
-                const pastMonth = new Date(now.setMonth(now.getMonth() - 1));
-                filtered = allQuotations.filter(q => new Date(q.doc_date) >= pastMonth);
-            }
-            renderList(filtered);
-        }
-
-        function openQuotation(id) {
-            const q = allQuotations.find(x => x.id === id);
-            if (q) {
-                currentDocId = q.id;
-                document.getElementById('docNo').value = q.doc_no;
-                document.getElementById('clientName').value = q.client_name;
-                document.getElementById('docDate').value = q.doc_date;
-                document.getElementById('rows').innerHTML = '';
-                q.items.forEach(i => addRow(i.name, i.unit, i.q, i.p, i.note));
-                
-                // Editor tabına keçid
-                document.querySelector('[data-bs-target="#tab-editor"]').click();
-            }
-        }
-
-        async function deleteQuotation(id, docNo) {
-            if(confirm('Silmək istədiyinizə əminsiniz?')) {
-                await supabase.from('quotations').delete().eq('id', id);
-                logAudit('Silinmə', `${docNo} nömrəli sənəd silindi.`);
-                if(currentDocId === id) newQuotation();
-                loadQuotations();
-            }
-        }
-
-        /* ==========================================
-           7. AUDİT LOGLAR
-           ========================================== */
-        async function logAudit(action, details) {
-            if(navigator.onLine) {
-                await supabase.from('audit_logs').insert([{ user_id: currentUser.id, action, details }]);
-            }
-        }
-
-        async function loadAuditLogs() {
-            const { data } = await supabase.from('audit_logs').select('*').order('created_at', { ascending: false }).limit(50);
-            const tbody = document.getElementById('auditBody');
-            tbody.innerHTML = '';
-            if(data) {
-                data.forEach(log => {
-                    let d = new Date(log.created_at).toLocaleString('az-AZ');
-                    tbody.innerHTML += `<tr><td>${d}</td><td><span class="badge bg-secondary">${log.action}</span></td><td>${log.details}</td></tr>`;
-                });
-            }
-        }
-
-        /* ==========================================
-           8. EXPORT / IMPORT (PDF, EXCEL, JSON)
-           ========================================== */
-        async function generatePDF() {
-            // PDF üçün müvəqqəti dizayn düzəlişləri (dark mode problem yaratmasın deyə)
-            const printEl = document.getElementById('printArea');
-            const btns = printEl.querySelectorAll('.no-print');
-            btns.forEach(b => b.style.display = 'none');
-            
-            showLoader(true);
-            const canvas = await html2canvas(printEl, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
-            const imgData = canvas.toDataURL('image/png');
-            const pdf = new jspdf.jsPDF('p', 'mm', 'a4');
-            const pdfW = pdf.internal.pageSize.getWidth();
-            const pdfH = (canvas.height * pdfW) / canvas.width;
-            
-            pdf.addImage(imgData, 'PNG', 0, 0, pdfW, pdfH);
-            pdf.save(`Teklif_${document.getElementById('docNo').value}.pdf`);
-            
-            btns.forEach(b => b.style.display = 'block');
-            showLoader(false);
-            logAudit('PDF', `${document.getElementById('docNo').value} sənədi PDF olaraq yükləndi.`);
-        }
-
-        function exportJSON() {
-            const data = getFormData();
-            const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
-            const link = document.createElement("a");
-            link.href = URL.createObjectURL(blob);
-            link.download = `Teklif_${data.doc_no}.json`;
-            link.click();
-        }
-
-        function exportExcel() {
-            const data = getFormData();
-            const ws_data = [
-                ["Təklif №", data.doc_no, "Tarix", data.doc_date],
-                ["Müştəri", data.client_name, "", ""],
-                [],
-                ["№", "Malların adı", "Ölçü", "Miqdar", "Qiymət", "Məbləğ", "Qeyd"]
-            ];
-            data.items.forEach((item, index) => {
-                ws_data.push([index+1, item.name, item.unit, item.q, item.p, (item.q*item.p).toFixed(2), item.note]);
-            });
-            ws_data.push([], ["","","","","Ümumi Cəm:", data.total_amount, ""]);
-
-            const ws = XLSX.utils.aoa_to_sheet(ws_data);
-            const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, "Təklif");
-            XLSX.writeFile(wb, `Teklif_${data.doc_no}.xlsx`);
-            logAudit('Excel İxrac', `${data.doc_no} sənədi Excelə çıxarıldı.`);
-        }
-
-        function importExcel(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                const data = new Uint8Array(e.target.result);
-                const workbook = XLSX.read(data, {type: 'array'});
-                const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-                const jsonData = XLSX.utils.sheet_to_json(firstSheet, {header: 1});
-                
-                // Sadə bir import məntiqi (şablona uyğun deyilsə qarışa bilər)
-                if(confirm('Hazırki sətirlər silinib Exceldən məlumatlar yazılsın?')) {
-                    document.getElementById('rows').innerHTML = '';
-                    // 4-cü sətirdən sonra məhsullar başlayır (məntiq olaraq)
-                    for(let i = 4; i < jsonData.length; i++) {
-                        let row = jsonData[i];
-                        if(row[1]) { // Məhsul adı varsa
-                            addRow(row[1]||'', row[2]||'Ədəd', parseFloat(row[3])||0, parseFloat(row[4])||0, row[6]||'');
-                        }
-                    }
-                }
-            };
-            reader.readAsArrayBuffer(file);
-            event.target.value = ''; // reset
-        }
-
-        /* ==========================================
-           9. DİZAYN / THEME (GLASSMORPHISM)
-           ========================================== */
-        function toggleTheme() {
-            const body = document.body;
-            if (body.getAttribute('data-theme') === 'dark') {
-                body.removeAttribute('data-theme');
-                localStorage.setItem('theme', 'light');
-            } else {
-                body.setAttribute('data-theme', 'dark');
-                localStorage.setItem('theme', 'dark');
-            }
-        }
-        if(localStorage.getItem('theme') === 'dark') document.body.setAttribute('data-theme', 'dark');
-
-    </script>
-    
-    <!-- Bootstrap JS for Tabs -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-</body>
-</html>
+        // Quote Logic
+        const generateQuoteId = () => {
+            settings.lastQuoteNum = (settings.lastQuoteNum || 0) + 1;
+            dbOp('settings', 'readwrite', 'put', settings);
+            return `QT-${String(settings.lastQuoteNum).
