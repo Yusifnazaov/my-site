@@ -59,7 +59,7 @@
     </div>
 
     <script>
-        // Səhifə yüklənəndə məlumatları bərpa et
+        // Səhifə açılan kimi mövcud yaddaşdakı məlumatları yüklə
         window.onload = function() {
             loadData();
         };
@@ -106,7 +106,7 @@
             });
         }
 
-        // Məlumatları brauzer yaddaşında (localStorage) saxlamaq
+        // Məlumatları daimi brauzer yaddaşına yazmaq
         function saveData() {
             const rowsData = [];
             document.querySelectorAll('#rows tr').forEach(tr => {
@@ -130,7 +130,7 @@
             alert('Məlumatlar uğurla yadda saxlanıldı!');
         }
 
-        // Yadda saxlanılmış məlumatları yükləmək
+        // Səhifəyə yenidən girəndə məlumatları yaddaşdan oxumaq
         function loadData() {
             const savedData = localStorage.getItem('rm_steel_proposal');
             if (savedData) {
@@ -142,17 +142,13 @@
                 document.getElementById('rows').innerHTML = '';
                 if (data.rows && data.rows.length > 0) {
                     data.rows.forEach(r => add(r.name, r.unit, r.q, r.p, r.note));
-                } else {
-                    add('Boru şovlu 20', 'Metr', 210, 1.44, '');
                 }
-            } else {
-                add('Boru şovlu 20', 'Metr', 210, 1.44, '');
             }
         }
 
-        // Formanı sıfırlamaq üçün köməkçi funksiya
+        // Forma məlumatlarını sıfırlamaq
         function clearData() {
-            if (confirm("Yadda saxlanılmış məlumatları silmək və sıfırlamaq istədiyinizdən əminsiniz?")) {
+            if (confirm("Yadda saxlanılmış məlumatları silmək və formanı sıfırlamaq istədiyinizdən əminsiniz?")) {
                 localStorage.removeItem('rm_steel_proposal');
                 location.reload();
             }
