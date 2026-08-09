@@ -2,9 +2,12 @@
 <html lang="az">
 <head>
     <meta charset="UTF-8">
-    <title>Qiymət Təklifi və Baza</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <title>Qiymət Təklifi</title>
+    <style>
+        @media print {
+            .no-print { display: none !important; }
+        }
+    </style>
 </head>
 <body>
     <div id="printArea" style="padding: 15px; background: white;">
@@ -38,16 +41,6 @@
                 </tr>
             </thead>
             <tbody id="rows">
-                <tr>
-                    <td align="center" class="num">1</td>
-                    <td><input type="text" value="Boru şovlu 20" style="width:95%"></td>
-                    <td><input type="text" value="Metr" style="width:95%"></td>
-                    <td><input type="number" step="any" value="210" class="q" oninput="calc()"></td>
-                    <td><input type="number" step="any" value="1.44" class="p" oninput="calc()"></td>
-                    <td class="a">302.40</td>
-                    <td><input type="text" style="width:95%"></td>
-                    <td class="no-print"><button onclick="del(this)">X</button></td>
-                </tr>
             </tbody>
             <tfoot>
                 <tr>
@@ -61,25 +54,16 @@
     <br>
     <div class="no-print" style="margin-bottom: 20px;">
         <button onclick="add()">+ Yeni sətir</button>
-        <button onclick="saveToDatabase()" style="background: green; color: white; padding: 5px 15px; font-weight: bold;"> Bazada Saxla (PDF kimi)</button>
+        <button onclick="saveData()" style="background: #28a745; color: white; padding: 6px 16px; font-weight: bold; border: none; cursor: pointer; border-radius: 4px;">💾 Yadda saxla</button>
+        <button onclick="clearData()" style="background: #dc3545; color: white; padding: 6px 16px; border: none; cursor: pointer; border-radius: 4px;">Sıfırla</button>
     </div>
-    <hr class="no-print">
-    <div class="no-print">
-        <h3> Yadda Saxlanılmış Təkliflər (Verilənlər Bazası)</h3>
-        <table border="1" cellspacing="0" cellpadding="5" width="100%">
-            <thead>
-                <tr bgcolor="#f0f0f0">
-                    <th>ID</th>
-                    <th>Müştəri / №</th>
-                    <th>Yadda saxlanılma Tarixi və Saatı</th>
-                    <th>Əməliyyat</th>
-                </tr>
-            </thead>
-            <tbody id="dbList">
-            </tbody>
-        </table>
-    </div>
+
     <script>
+        // Səhifə yüklənəndə məlumatları bərpa et
+        window.onload = function() {
+            loadData();
+        };
+
         function calc() {
             let trs = document.querySelectorAll('#rows tr'), sum = 0;
             trs.forEach(tr => {
@@ -91,111 +75,86 @@
             });
             document.getElementById('total').innerText = sum.toFixed(2);
         }
-        function add() {
+
+        function add(name = '', unit = 'Metr', q = 0, p = 0, note = '') {
             let tbody = document.getElementById('rows');
             let tr = document.createElement('tr');
             tr.innerHTML = `
                 <td align="center" class="num"></td>
-                <td><input type="text" style="width:95%"></td>
-                <td><input type="text" value="Metr" style="width:95%"></td>
-                <td><input type="number" step="any" value="0" class="q" oninput="calc()"></td>
-                <td><input type="number" step="any" value="0" class="p" oninput="calc()"></td>
+                <td><input type="text" class="item-name" value="${name}" style="width:95%"></td>
+                <td><input type="text" class="item-unit" value="${unit}" style="width:95%"></td>
+                <td><input type="number" step="any" value="${q}" class="q" oninput="calc()"></td>
+                <td><input type="number" step="any" value="${p}" class="p" oninput="calc()"></td>
                 <td class="a">0.00</td>
-                <td><input type="text" style="width:95%"></td>
+                <td><input type="text" class="item-note" value="${note}" style="width:95%"></td>
                 <td class="no-print"><button onclick="del(this)">X</button></td>
             `;
             tbody.appendChild(tr);
             renumber();
+            calc();
         }
+
         function del(btn) {
             btn.closest('tr').remove();
             renumber();
             calc();
         }
+
         function renumber() {
             document.querySelectorAll('#rows tr').forEach((tr, i) => {
                 tr.querySelector('.num').innerText = i + 1;
             });
         }
-        calc();
-        let db;
-        const request = indexedDB.open("TekliflərDB", 1);
-        request.onupgradeneeded = function(e) {
-            db = e.target.result;
-            db.createObjectStore("pdf_files", { keyPath: "id", autoIncrement: true });
-        };
-        request.onsuccess = function(e) {
-            db = e.target.result;
-            loadFromDatabase();
-        };
-        async function saveToDatabase() {
-            const { jsPDF } = window.jspdf;
-            const printElement = document.getElementById('printArea');
-            const canvas = await html2canvas(printElement, { scale: 2 });
-            const imgData = canvas.toDataURL('image/jpeg', 0.95);
-            const pdf = new jsPDF('p', 'mm', 'a4');
-            const pdfWidth = pdf.internal.pageSize.getWidth();
-            const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-            pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
-            const pdfBlob = pdf.output('blob');
-            const now = new Date();
-            const timestamp = now.toLocaleDateString('az-AZ') + ' ' + now.toLocaleTimeString('az-AZ');
-            const client = document.getElementById('clientName').value || 'Adsız Müştəri';
-            const docNo = document.getElementById('docNo').value || '-';
-            const tx = db.transaction("pdf_files", "readwrite");
-            const store = tx.objectStore("pdf_files");
-            store.add({
-                client: client + " (№ " + docNo + ")",
-                date: timestamp,
-                file: pdfBlob
-            });
-            tx.oncomplete = function() {
-                alert("Təklif PDF olaraq bazada saxlanıldı!");
-                loadFromDatabase();
-            };
-        }
-        function loadFromDatabase() {
-            const tx = db.transaction("pdf_files", "readonly");
-            const store = tx.objectStore("pdf_files");
-            const request = store.getAll();
-            request.onsuccess = function() {
-                const list = document.getElementById('dbList');
-                list.innerHTML = "";
-                request.result.forEach(item => {
-                    let tr = document.createElement('tr');
-                    tr.innerHTML = `
-                        <td>${item.id}</td>
-                        <td>${item.client}</td>
-                        <td><b>${item.date}</b></td>
-                        <td>
-                            <button onclick="downloadPDF(${item.id})"> PDF Endir</button>
-                            <button onclick="deleteFromDB(${item.id})" style="color:red;">Sil</button>
-                        </td>
-                    `;
-                    list.appendChild(tr);
+
+        // Məlumatları brauzer yaddaşında (localStorage) saxlamaq
+        function saveData() {
+            const rowsData = [];
+            document.querySelectorAll('#rows tr').forEach(tr => {
+                rowsData.push({
+                    name: tr.querySelector('.item-name').value,
+                    unit: tr.querySelector('.item-unit').value,
+                    q: tr.querySelector('.q').value,
+                    p: tr.querySelector('.p').value,
+                    note: tr.querySelector('.item-note').value
                 });
+            });
+
+            const formData = {
+                docDate: document.getElementById('docDate').value,
+                docNo: document.getElementById('docNo').value,
+                clientName: document.getElementById('clientName').value,
+                rows: rowsData
             };
+
+            localStorage.setItem('rm_steel_proposal', JSON.stringify(formData));
+            alert('Məlumatlar uğurla yadda saxlanıldı!');
         }
-        function downloadPDF(id) {
-            const tx = db.transaction("pdf_files", "readonly");
-            const store = tx.objectStore("pdf_files");
-            const request = store.get(id);
-            request.onsuccess = function() {
-                const item = request.result;
-                const link = document.createElement('a');
-                link.href = URL.createObjectURL(item.file);
-                link.download = `Teklif_${item.id}_${item.date.replace(/[/ :]/g, '_')}.pdf`;
-                link.click();
-            };
+
+        // Yadda saxlanılmış məlumatları yükləmək
+        function loadData() {
+            const savedData = localStorage.getItem('rm_steel_proposal');
+            if (savedData) {
+                const data = JSON.parse(savedData);
+                document.getElementById('docDate').value = data.docDate || '2026-08-08';
+                document.getElementById('docNo').value = data.docNo || '';
+                document.getElementById('clientName').value = data.clientName || '';
+
+                document.getElementById('rows').innerHTML = '';
+                if (data.rows && data.rows.length > 0) {
+                    data.rows.forEach(r => add(r.name, r.unit, r.q, r.p, r.note));
+                } else {
+                    add('Boru şovlu 20', 'Metr', 210, 1.44, '');
+                }
+            } else {
+                add('Boru şovlu 20', 'Metr', 210, 1.44, '');
+            }
         }
-        function deleteFromDB(id) {
-            if(confirm("Bu təklifi bazadan silmək istədiyinizdən əminsiniz?")) {
-                const tx = db.transaction("pdf_files", "readwrite");
-                const store = tx.objectStore("pdf_files");
-                store.delete(id);
-                tx.oncomplete = function() {
-                    loadFromDatabase();
-                };
+
+        // Formanı sıfırlamaq üçün köməkçi funksiya
+        function clearData() {
+            if (confirm("Yadda saxlanılmış məlumatları silmək və sıfırlamaq istədiyinizdən əminsiniz?")) {
+                localStorage.removeItem('rm_steel_proposal');
+                location.reload();
             }
         }
     </script>
