@@ -15,7 +15,7 @@
             --main-bg: #fff;
             --text: #333;
             --border: #ccc;
-            --rm-blue: #1a4a7c; /* RM Steel göy rəngi */
+            --rm-blue: #1a4a7c;
             --primary: #1a4a7c;
             --hover: #14385d;
             --danger: #e74c3c;
@@ -76,10 +76,11 @@
 
         /* Totals */
         .totals-section { display: flex; flex-direction: column; align-items: flex-end; margin-top: 10px; }
-        .totals-table { width: 250px; border-collapse: collapse; }
+        .totals-table { width: 280px; border-collapse: collapse; }
         .totals-table td { background: #fff; border: 1px solid #aaa; padding: 5px 10px; }
-        .totals-table .label { font-weight: bold; text-align: right; width: 100px; }
+        .totals-table .label { font-weight: bold; text-align: right; width: 130px; }
         .totals-table .value { text-align: right; }
+        .tax-select { border: none; background: transparent; font-weight: bold; font-size: 14px; cursor: pointer; outline: none; }
         .yekun-box { height: 30px; border: 1px solid #000; margin-top: 5px; width: 100%; }
 
         /* Footer */
@@ -94,6 +95,7 @@
             .main { overflow: visible; }
             .doc-wrapper { padding: 0; }
             .document { box-shadow: none; padding: 0; margin: 0; width: 100%; }
+            .tax-select { appearance: none; -webkit-appearance: none; }
         }
     </style>
 </head>
@@ -157,18 +159,17 @@
                 <!-- Cədvəl -->
                 <table>
                     <thead>
-    <tr>
-        <th style="width:30px;">#</th>
-        <th style="width:40%;">Malların adı</th> <!-- Bu hissəyə width əlavə edildi -->
-        <th style="width:100px;">ölçü vahidi</th>
-        <th style="width:80px;">miqdar</th>
-        <th style="width:100px;">qiymət</th>
-        <th style="width:120px;">məbləğ (azn)</th>
-        <th>Qeydlər</th>
-        <th class="col-action" style="width:30px;"></th>
-    </tr>
-</thead>
-
+                        <tr>
+                            <th style="width:30px;">#</th>
+                            <th style="width:40%;">Malların adı</th>
+                            <th style="width:100px;">ölçü vahidi</th>
+                            <th style="width:80px;">miqdar</th>
+                            <th style="width:100px;">qiymət</th>
+                            <th style="width:120px;">məbləğ (azn)</th>
+                            <th>Qeydlər</th>
+                            <th class="col-action" style="width:30px;"></th>
+                        </tr>
+                    </thead>
                     <tbody id="items-tbody">
                         <!-- Rows added by JS -->
                     </tbody>
@@ -183,7 +184,12 @@
                             <td class="value" id="t_subtotal">0.00</td>
                         </tr>
                         <tr>
-                            <td class="label">ƏDV</td>
+                            <td class="label">
+                                ƏDV (<select id="t_tax_rate" class="tax-select" onchange="calculateTotals()">
+                                    <option value="18">18%</option>
+                                    <option value="0">0%</option>
+                                </select>)
+                            </td>
                             <td class="value" id="t_tax">0.00</td>
                         </tr>
                         <tr>
@@ -222,12 +228,10 @@
     </div>
 
     <script>
-        // --- DATA LOGIC (KEEPING YOUR ORIGINAL LOGIC) ---
         let quotes = [], clients = [], products = [], settings = {};
         let currentQuoteId = null;
 
         window.onload = async () => {
-            // Load from LocalStorage (simplified for this demo)
             settings = JSON.parse(localStorage.getItem('rm_settings')) || { 
                 name: 'RM Steel MMC', address: 'Bakı ş., Dərnəgül pr., Grand bazar', 
                 phone: '+994 10 600 09 01', email: 'info@rmsteel.az', lastId: 0 
@@ -252,6 +256,7 @@
             document.getElementById('q_id').value = currentQuoteId;
             document.getElementById('q_date').value = new Date().toLocaleDateString();
             document.getElementById('cl_name').value = '';
+            document.getElementById('t_tax_rate').value = '18';
             document.getElementById('items-tbody').innerHTML = '';
             addRow();
             calculateTotals();
@@ -284,8 +289,14 @@
                 tr.querySelector('.i-amt').innerText = amt.toFixed(2);
                 subtotal += amt;
             });
+
+            const taxRate = parseFloat(document.getElementById('t_tax_rate').value) || 0;
+            const tax = subtotal * (taxRate / 100);
+            const total = subtotal + tax;
+
             document.getElementById('t_subtotal').innerText = subtotal.toFixed(2);
-            document.getElementById('t_total').innerText = subtotal.toFixed(2);
+            document.getElementById('t_tax').innerText = tax.toFixed(2);
+            document.getElementById('t_total').innerText = total.toFixed(2);
             autoSave();
         };
 
@@ -295,6 +306,9 @@
                 id: currentQuoteId,
                 date: document.getElementById('q_date').value,
                 client: document.getElementById('cl_name').value,
+                taxRate: document.getElementById('t_tax_rate').value,
+                subtotal: document.getElementById('t_subtotal').innerText,
+                tax: document.getElementById('t_tax').innerText,
                 total: document.getElementById('t_total').innerText,
                 items: []
             };
@@ -324,6 +338,7 @@
             document.getElementById('q_id').value = q.id;
             document.getElementById('q_date').value = q.date;
             document.getElementById('cl_name').value = q.client;
+            document.getElementById('t_tax_rate').value = q.taxRate !== undefined ? q.taxRate : '18';
             document.getElementById('items-tbody').innerHTML = '';
             q.items.forEach(item => addRow(item));
             calculateTotals();
@@ -382,7 +397,6 @@
             document.getElementById('clients-list').innerHTML = clients.map(c => `<option value="${c}">`).join('');
             document.getElementById('products-list').innerHTML = products.map(p => `<option value="${p.name}">`).join('');
         };
-
         const handleProdInput = (el) => {
             const p = products.find(x => x.name === el.value);
             if(p) {
@@ -394,9 +408,6 @@
         };
 
         const handleClientInput = (val) => {
-            if(val && !clients.includes(val)) {
-                // clients.push(val); // Optional auto-save client
-            }
             autoSave();
         };
 
@@ -420,6 +431,11 @@
                 const ins = tr.querySelectorAll('input');
                 rows.push([tr.cells[0].innerText, ins[0].value, ins[1].value, ins[2].value, ins[3].value, tr.cells[5].innerText]);
             });
+            rows.push([]);
+            rows.push(['', '', '', '', 'Cəmi:', document.getElementById('t_subtotal').innerText]);
+            rows.push(['', '', '', '', `ƏDV (${document.getElementById('t_tax_rate').value}%):`, document.getElementById('t_tax').innerText]);
+            rows.push(['', '', '', '', 'Yekun:', document.getElementById('t_total').innerText]);
+
             const ws = XLSX.utils.aoa_to_sheet(rows);
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, "Təklif");
@@ -433,3 +449,4 @@
     </script>
 </body>
 </html>
+       
