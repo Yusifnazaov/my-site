@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RM Steel - Qiymət Təklifi Sistemi</title>
+    <!-- PDF və Excel yükləmək üçün tələb olunan kitabxanalar -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -24,33 +25,44 @@
             --table-grey: #f2f2f2;
         }
         [data-theme="dark"] {
-            --bg: #121212; --side-bg: #1e1e1e; --side-text: #ddd; --main-bg: #1e1e1e;
-            --text: #eee; --border: #444; --doc-bg: #2a2a2a;
+            --bg: #121212; 
+            --side-bg: #11181e; 
+            --side-text: #ddd; 
+            --main-bg: #1e1e1e;
+            --text: #eee; 
+            --border: #444; 
+            --table-grey: #e0e0e0; 
         }
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Arial, sans-serif; }
-        body { display: flex; height: 100vh; background: var(--bg); color: var(--text); overflow: hidden; transition: background 0.3s; }
+        body { display: flex; height: 100vh; background: var(--bg); color: var(--text); overflow: hidden; transition: background 0.3s, color 0.3s; }
       
         /* Layout */
         .sidebar { width: 300px; background: var(--side-bg); color: var(--side-text); display: flex; flex-direction: column; transition: 0.3s; z-index: 10; }
-        .sidebar-header { padding: 20px; font-size: 1.2rem; font-weight: bold; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .sidebar-header { padding: 20px; font-size: 1.2rem; font-weight: bold; border-bottom: 1px solid rgba(255,255,255,0.1); display: flex; justify-content: space-between; align-items: center;}
         .search-box { padding: 15px; }
         .search-box input { width: 100%; padding: 8px; border: none; border-radius: 4px; outline: none; }
         .quote-list { flex: 1; overflow-y: auto; padding: 0 10px; }
-        .quote-item { padding: 15px; margin-bottom: 5px; background: rgba(255,255,255,0.05); border-radius: 5px; cursor: pointer; }
+        .quote-item { padding: 15px; margin-bottom: 5px; background: rgba(255,255,255,0.05); border-radius: 5px; cursor: pointer; word-break: break-all; }
         .quote-item:hover, .quote-item.active { background: var(--rm-blue); }
         
         .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
-        .toolbar { padding: 10px 20px; background: var(--main-bg); border-bottom: 1px solid var(--border); display: flex; gap: 10px; flex-wrap: wrap; align-items: center; justify-content: space-between; }
+        .toolbar { padding: 10px 20px; background: var(--main-bg); border-bottom: 1px solid var(--border); display: flex; gap: 10px; flex-wrap: wrap; align-items: center; justify-content: space-between; transition: 0.3s;}
         
-        .btn { padding: 8px 15px; border: none; border-radius: 5px; cursor: pointer; background: var(--rm-blue); color: #fff; font-size: 0.9rem; }
+        .btn { padding: 8px 15px; border: none; border-radius: 5px; cursor: pointer; background: var(--rm-blue); color: #fff; font-size: 0.9rem; transition: background 0.2s; }
+        .btn:hover { background: var(--hover); }
         .btn.danger { background: var(--danger); }
+        .btn.danger:hover { background: #c0392b; }
         .btn.success { background: var(--success); }
+        .btn.success:hover { background: #27ae60; }
+        .btn.dark-btn { background: #333; }
         
-        .doc-wrapper { flex: 1; overflow-y: auto; padding: 40px 20px; display: flex; justify-content: center; }
+        .doc-wrapper { flex: 1; overflow: auto; padding: 40px 20px; display: flex; justify-content: center; align-items: flex-start; }
+        
+        /* A4 Sənəd Ölçüləri və Qorunması */
         .document { width: 210mm; min-height: 297mm; background: #fff; padding: 20px 40px; box-shadow: 0 0 20px rgba(0,0,0,0.1); position: relative; color: #000; }
         
         /* Document Header */
-        .doc-header { display: flex; justify-content: space-between; margin-bottom: 20px; align-items: flex-start; }
+        .doc-header { display: flex; justify-content: space-between; margin-bottom: 20px; align-items: flex-start; flex-wrap: wrap; gap: 15px;}
         .logo-area { display: flex; align-items: flex-start; gap: 15px; }
         .logo-placeholder { font-size: 70px; font-weight: 900; line-height: 0.8; color: #000; letter-spacing: -5px; }
         .company-details { font-size: 14px; color: #333; line-height: 1.4; }
@@ -63,75 +75,98 @@
         
         /* Client Section */
         .client-info { margin: 20px 0; font-size: 16px; font-weight: bold; }
-        .client-info input { border: none; font-weight: bold; font-size: 16px; width: 300px; outline: none; }
-
+        .client-info input { border: none; font-weight: bold; font-size: 16px; width: 100%; max-width: 400px; outline: none; border-bottom: 1px dashed #ccc; padding-bottom: 3px; }
+        
         /* Table Style */
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        th, td { border: 1px solid #aaa; padding: 6px 8px; font-size: 14px; }
+        .table-responsive { width: 100%; overflow-x: auto; margin-top: 10px; }
+        table { width: 100%; border-collapse: collapse; min-width: 600px; }
+        th, td { border: 1px solid #aaa; padding: 6px 8px; font-size: 14px; color: #000; }
         th { background: var(--rm-blue); color: #fff; font-weight: normal; text-align: center; }
         tbody tr { background: var(--table-grey); }
-        input.table-input { background: transparent; border: none; width: 100%; outline: none; font-size: 14px; }
+        input.table-input { background: transparent; border: none; width: 100%; outline: none; font-size: 14px; color: #000; }
         .text-center { text-align: center; }
         .text-right { text-align: right; }
-
+        
         /* Totals */
         .totals-section { display: flex; flex-direction: column; align-items: flex-end; margin-top: 10px; }
         .totals-table { width: 280px; border-collapse: collapse; }
-        .totals-table td { background: #fff; border: 1px solid #aaa; padding: 5px 10px; }
+        .totals-table td { background: #fff; border: 1px solid #aaa; padding: 5px 10px; color:#000; }
         .totals-table .label { font-weight: bold; text-align: right; width: 130px; }
-        .totals-table .value { text-align: right; }
-        .tax-select { border: none; background: transparent; font-weight: bold; font-size: 14px; cursor: pointer; outline: none; }
-        .yekun-box { height: 30px; border: 1px solid #000; margin-top: 5px; width: 100%; }
-
+        .totals-table .value { text-align: right; font-weight: bold; }
+        .tax-select { border: 1px solid #ccc; background: transparent; font-weight: bold; font-size: 14px; cursor: pointer; outline: none; padding: 2px;}
+        .yekun-box { height: 30px; border: 1px solid #000; margin-top: 5px; width: 280px; background: var(--rm-blue); color: #fff; font-weight: bold; display: flex; align-items: center; justify-content: center; }
+        
         /* Footer */
-        .doc-footer { margin-top: 50px; text-align: center; font-size: 14px; }
+        .doc-footer { margin-top: 50px; text-align: center; font-size: 14px; color: #333; }
         .footer-contact { margin-bottom: 10px; }
         .footer-thanks { font-weight: bold; color: var(--rm-blue); font-size: 18px; }
 
-        /* Print/PDF Tweaks */
+        /* Mobil menyu düyməsi (yalnız mobildə görünür) */
+        .mobile-menu-btn { display: none; background: transparent; color: var(--text); border: none; font-size: 24px; cursor: pointer; }
+
+        /* Ayarlar Modal */
+        #settingsModal { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:100; align-items:center; justify-content:center; }
+        .modal-content { background: var(--main-bg); color: var(--text); padding: 30px; border-radius: 8px; width: 90%; max-width: 450px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
+        .modal-content input { width: 100%; margin-bottom: 15px; padding: 8px; border: 1px solid var(--border); border-radius: 4px; background: transparent; color: var(--text); }
+        
+        /* Mobile Responsive */
+        @media screen and (max-width: 850px) {
+            body { flex-direction: column; }
+            .sidebar { width: 100%; flex: none; height: 50vh; display: none; }
+            .sidebar.active { display: flex; }
+            .mobile-menu-btn { display: block; }
+            .toolbar { flex-direction: column; align-items: stretch; }
+            .toolbar > div { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+            .doc-wrapper { padding: 10px; justify-content: flex-start; }
+        }
+
+        /* Print/PDF Tənzimləmələri */
         @media print, .pdf-mode {
-            body { background: #fff !important; }
-            .sidebar, .toolbar, .btn-add, .col-action { display: none !important; }
+            body { background: #fff !important; flex-direction: row; }
+            .sidebar, .toolbar, .btn-add, .col-action, .mobile-menu-btn { display: none !important; }
             .main { overflow: visible; }
-            .doc-wrapper { padding: 0; }
-            .document { box-shadow: none; padding: 0; margin: 0; width: 100%; }
-            .tax-select { appearance: none; -webkit-appearance: none; }
+            .doc-wrapper { padding: 0; overflow: visible; display: block;}
+            .document { box-shadow: none; padding: 0; margin: 0; width: 210mm; height: auto; min-height: auto;}
+            .tax-select { appearance: none; -webkit-appearance: none; border: none; }
         }
     </style>
 </head>
 <body>
-
-    <!-- Datalists for autocomplete -->
+    <!-- Avtodoldurma üçün məlumat bazası datalistləri -->
     <datalist id="clients-list"></datalist>
     <datalist id="products-list"></datalist>
 
-    <div class="sidebar hide-print">
-        <div class="sidebar-header">RM Steel MMC</div>
+    <div class="sidebar hide-print" id="appSidebar">
+        <div class="sidebar-header">
+            <span>Sənədlər</span>
+            <button class="btn dark-btn" onclick="toggleDarkMode()" title="Gecə/Gündüz Rejimi">🌙/☀️</button>
+        </div>
         <div class="search-box">
             <button class="btn" style="width:100%; margin-bottom:10px;" onclick="createNewQuote()">+ Yeni Təklif</button>
-            <input type="text" id="searchInput" placeholder="Axtarış..." oninput="renderSidebar()">
+            <input type="text" id="searchInput" placeholder="Müştəri və ya sənəd № axtar..." oninput="renderSidebar()">
         </div>
         <div class="quote-list" id="quoteList"></div>
     </div>
 
     <div class="main">
         <div class="toolbar hide-print">
-            <div style="display:flex; gap:10px;">
-                <button class="btn success" onclick="saveCurrentQuote(true)">Yadda Saxla</button>
-                <button class="btn" onclick="window.print()">Çap Et</button>
-                <button class="btn" onclick="exportPDF()">PDF Yüklə</button>
-                <button class="btn" onclick="exportExcel()">Excel</button>
+            <div style="display:flex; gap:10px; align-items:center;">
+                <button class="mobile-menu-btn" onclick="document.getElementById('appSidebar').classList.toggle('active')">☰</button>
+                <button class="btn success" onclick="saveCurrentQuote(true)">💾 Yadda Saxla</button>
+                <button class="btn" onclick="window.print()">🖨️ Çap Et</button>
+                <button class="btn" onclick="exportPDF()">📄 PDF</button>
+                <button class="btn" onclick="exportExcel()">📊 Excel</button>
             </div>
             <div style="display:flex; gap:10px;">
-                <button class="btn danger" onclick="deleteCurrentQuote()">Sil</button>
-                <button class="btn" onclick="openSettings()">Ayarlar</button>
+                <button class="btn danger" onclick="deleteCurrentQuote()">🗑️ Sil</button>
+                <button class="btn dark-btn" onclick="openSettings()">⚙️ Ayarlar</button>
             </div>
         </div>
 
         <div class="doc-wrapper">
             <div class="document" id="print-area">
                 
-                <!-- Şəkil dizaynına uyğun Header -->
+                <!-- Sənəd Başlığı -->
                 <div class="doc-header">
                     <div class="logo-area">
                         <div class="logo-placeholder">RM</div>
@@ -147,36 +182,39 @@
                         <h1>QİYMƏT TƏKLİFİ</h1>
                         <div class="meta-info">
                             Tarix: <input type="text" id="q_date" class="table-input" style="width:100px; text-align:right;" oninput="autoSave()"><br>
-                            Təklif №: <input type="text" id="q_id" class="table-input" style="width:100px; text-align:right;" readonly>
+                            Təklif №: <input type="text" id="q_id" class="table-input" style="width:100px; text-align:right; font-weight:bold; color:var(--rm-blue);" readonly>
                         </div>
                     </div>
                 </div>
 
                 <div class="client-info">
-                    Müştəri: <input type="text" id="cl_name" list="clients-list" placeholder="Müştəri adı..." oninput="handleClientInput(this.value)">
+                    Müştəri: <input type="text" id="cl_name" list="clients-list" placeholder="Müştərinin adını daxil edin..." oninput="autoSave()">
                 </div>
 
                 <!-- Cədvəl -->
-                <table>
-                    <thead>
-                        <tr>
-                            <th style="width:30px;">#</th>
-                            <th style="width:40%;">Malların adı</th>
-                            <th style="width:100px;">ölçü vahidi</th>
-                            <th style="width:80px;">miqdar</th>
-                            <th style="width:100px;">qiymət</th>
-                            <th style="width:120px;">məbləğ (azn)</th>
-                            <th>Qeydlər</th>
-                            <th class="col-action" style="width:30px;"></th>
-                        </tr>
-                    </thead>
-                    <tbody id="items-tbody">
-                        <!-- Rows added by JS -->
-                    </tbody>
-                </table>
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="width:30px;">#</th>
+                                <th style="width:35%;">Malların adı</th>
+                                <th style="width:80px;">Ölçü vahidi</th>
+                                <th style="width:80px;">Miqdar</th>
+                                <th style="width:100px;">Qiymət</th>
+                                <th style="width:120px;">Məbləğ (AZN)</th>
+                                <th>Qeydlər</th>
+                                <th class="col-action" style="width:30px;"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="items-tbody">
+                            <!-- JavaScript tərəfindən sətirlər bura əlavə olunacaq -->
+                        </tbody>
+                    </table>
+                </div>
+                
                 <button class="btn btn-add hide-print" style="margin-top:10px;" onclick="addRow()">+ Sətir əlavə et</button>
-
-                <!-- Totals -->
+                
+                <!-- Yekun Hesablamalar -->
                 <div class="totals-section">
                     <table class="totals-table">
                         <tr>
@@ -197,269 +235,467 @@
                             <td class="value" id="t_total">0.00</td>
                         </tr>
                     </table>
-                    <div class="yekun-box"></div>
+                    <div class="yekun-box">YEKUN ÖDƏNİŞ MƏBLƏĞİ</div>
                 </div>
 
                 <!-- Footer -->
                 <div class="doc-footer">
                     <div class="footer-contact">
                         Hər hansı bir sualınız olarsa əlaqə saxlaya bilərsiniz: 
-                        <span id="f_phone">+994 10 600 09 01</span>, 
-                        <span id="f_email">info@rmsteel.az</span>
+                        <span id="f_phone" style="font-weight:bold;"></span>, 
+                        <span id="f_email" style="font-weight:bold;"></span>
                     </div>
                     <div class="footer-thanks">Əməkdaşlığınız üçün təşəkkür edirik!</div>
                 </div>
-
             </div>
         </div>
     </div>
 
-    <!-- Settings Modal -->
-    <div id="settingsModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:100; align-items:center; justify-content:center;">
-        <div style="background:#fff; padding:30px; border-radius:8px; width:400px;">
-            <h3>Şirkət Məlumatları</h3><br>
-            Şirkət adı: <input type="text" id="set_name" style="width:100%; margin-bottom:10px;"><br>
-            Ünvan: <input type="text" id="set_addr" style="width:100%; margin-bottom:10px;"><br>
-            Telefon: <input type="text" id="set_phone" style="width:100%; margin-bottom:10px;"><br>
-            Email: <input type="text" id="set_email" style="width:100%; margin-bottom:20px;"><br>
-            <button class="btn success" onclick="saveSettings()">Yadda Saxla</button>
-            <button class="btn" onclick="document.getElementById('settingsModal').style.display='none'">Bağla</button>
+    <!-- Ayarlar Modal Pəncərəsi -->
+    <div id="settingsModal">
+        <div class="modal-content">
+            <h3 style="margin-bottom:20px;">Şirkət Məlumatları (Qaimə üçün)</h3>
+            <label>Şirkət adı:</label>
+            <input type="text" id="set_name">
+            <label>Ünvan:</label>
+            <input type="text" id="set_addr">
+            <label>Telefon:</label>
+            <input type="text" id="set_phone">
+            <label>Email:</label>
+            <input type="text" id="set_email">
+            <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:10px;">
+                <button class="btn danger" onclick="document.getElementById('settingsModal').style.display='none'">Bağla</button>
+                <button class="btn success" onclick="saveSettings()">Yadda Saxla</button>
+            </div>
         </div>
     </div>
 
     <script>
+        // Məlumat Baza Dəyişənləri
         let quotes = [], clients = [], products = [], settings = {};
         let currentQuoteId = null;
 
-        window.onload = async () => {
-            settings = JSON.parse(localStorage.getItem('rm_settings')) || { 
+        // Təhlükəsiz JSON oxuma funksiyası (Xəta baş verdikdə çökməməsi üçün)
+        const safeJSONParse = (key, defaultVal) => {
+            try {
+                const val = localStorage.getItem(key);
+                return val ? JSON.parse(val) : defaultVal;
+            } catch (e) {
+                console.warn(`JSON Parse Xətası (${key}):`, e);
+                return defaultVal;
+            }
+        };
+
+        // Başlanğıc yüklənmə
+        window.onload = () => {
+            settings = safeJSONParse('rm_settings', { 
                 name: 'RM Steel MMC', address: 'Bakı ş., Dərnəgül pr., Grand bazar', 
                 phone: '+994 10 600 09 01', email: 'info@rmsteel.az', lastId: 0 
-            };
-            quotes = JSON.parse(localStorage.getItem('rm_quotes')) || [];
-            clients = JSON.parse(localStorage.getItem('rm_clients')) || [];
-            products = JSON.parse(localStorage.getItem('rm_products')) || [];
+            });
+            quotes = safeJSONParse('rm_quotes', []);
+            clients = safeJSONParse('rm_clients', []);
+            products = safeJSONParse('rm_products', []);
+
+            // Dark Mode Yoxlanışı
+            if(localStorage.getItem('rm_theme') === 'dark') {
+                document.documentElement.setAttribute('data-theme', 'dark');
+            }
 
             applySettings();
             updateDatalists();
-
-            if(quotes.length > 0) loadQuote(quotes[0].id);
-            else createNewQuote();
+            
+            if(quotes.length > 0) {
+                loadQuote(quotes[0].id);
+            } else {
+                createNewQuote();
+            }
             renderSidebar();
         };
 
+        // Dark Mode Toggle
+        const toggleDarkMode = () => {
+            if (document.documentElement.getAttribute('data-theme') === 'dark') {
+                document.documentElement.removeAttribute('data-theme');
+                localStorage.setItem('rm_theme', 'light');
+            } else {
+                document.documentElement.setAttribute('data-theme', 'dark');
+                localStorage.setItem('rm_theme', 'dark');
+            }
+        };
+
+        // Yeni qaimə yaratmaq
         const createNewQuote = () => {
             settings.lastId++;
             localStorage.setItem('rm_settings', JSON.stringify(settings));
+            
             currentQuoteId = 'QT-' + String(settings.lastId).padStart(5, '0');
             
             document.getElementById('q_id').value = currentQuoteId;
-            document.getElementById('q_date').value = new Date().toLocaleDateString();
+            document.getElementById('q_date').value = new Date().toLocaleDateString('az-AZ');
             document.getElementById('cl_name').value = '';
             document.getElementById('t_tax_rate').value = '18';
             document.getElementById('items-tbody').innerHTML = '';
-            addRow();
+            
+            addRow(); // İlk boş sətir
             calculateTotals();
         };
 
+        // SƏTİR ƏLAVƏ ETMƏK - Təhlükəsiz və düzgün struktur
         const addRow = (data = {}) => {
             const tbody = document.getElementById('items-tbody');
-            const rowCount = tbody.rows.length + 1;
             const tr = document.createElement('tr');
+            
+            // InnerHTML daxilində yalnız DOM strukturu qurulur, məlumatlar property ilə verilir (XSS-dən qorunmaq üçün)
             tr.innerHTML = `
-                <td class="text-center">${rowCount}</td>
-                <td><input type="text" class="table-input" list="products-list" value="${data.name || ''}" oninput="handleProdInput(this)"></td>
-                <td><input type="text" class="table-input text-center" value="${data.unit || 'Metr'}" oninput="autoSave()"></td>
-                <td><input type="number" class="table-input text-center i-qty" value="${data.qty || ''}" oninput="calculateTotals()"></td>
-                <td><input type="number" class="table-input text-center i-price" value="${data.price || ''}" oninput="calculateTotals()"></td>
-                <td class="text-right i-amt">0.00</td>
-                <td><input type="text" class="table-input" value="${data.note || ''}" oninput="autoSave()"></td>
-                <td class="col-action text-center"><button style="color:red; border:none; background:none; cursor:pointer;" onclick="this.closest('tr').remove(); calculateTotals();">×</button></td>
+                <td class="text-center row-num"></td>
+                <td><input type="text" class="table-input i-name" list="products-list" placeholder="Məhsul adı..."></td>
+                <td><input type="text" class="table-input text-center i-unit"></td>
+                <td><input type="number" class="table-input text-center i-qty" min="0" step="any"></td>
+                <td><input type="number" class="table-input text-center i-price" min="0" step="any"></td>
+                <td class="text-right i-amt" style="font-weight:bold;">0.00</td>
+                <td><input type="text" class="table-input i-note"></td>
+                <td class="col-action text-center">
+                    <button type="button" class="btn-del" style="color:var(--danger); font-size:18px; border:none; background:none; cursor:pointer;" title="Sətri Sil">×</button>
+                </td>
             `;
+
+            // Elementləri tapıb dəyərləri təhlükəsiz şəkildə yazırıq
+            const inputs = {
+                name: tr.querySelector('.i-name'),
+                unit: tr.querySelector('.i-unit'),
+                qty: tr.querySelector('.i-qty'),
+                price: tr.querySelector('.i-price'),
+                note: tr.querySelector('.i-note'),
+                delBtn: tr.querySelector('.btn-del')
+            };
+
+            inputs.name.value = data.name || '';
+            inputs.unit.value = data.unit || 'Metr';
+            inputs.qty.value = data.qty !== undefined ? data.qty : '';
+            inputs.price.value = data.price !== undefined ? data.price : '';
+            inputs.note.value = data.note || '';
+
+            // Event Listener-lər
+            inputs.name.addEventListener('input', (e) => handleProdInput(e.target));
+            inputs.unit.addEventListener('input', autoSave);
+            inputs.note.addEventListener('input', autoSave);
+            inputs.qty.addEventListener('input', validateAndCalculate);
+            inputs.price.addEventListener('input', validateAndCalculate);
+            
+            // Sətir silmə
+            inputs.delBtn.addEventListener('click', () => {
+                tr.remove();
+                calculateTotals();
+            });
+
             tbody.appendChild(tr);
+            calculateTotals();
         };
 
+        // Mənfi rəqəm daxil edilməsinin qarşısını alan validasiya
+        const validateAndCalculate = (e) => {
+            if (e.target.value !== '' && parseFloat(e.target.value) < 0) {
+                e.target.value = 0;
+            }
+            calculateTotals();
+        };
+
+        // HESABLAMALAR (calculateTotals) - Təmizlənmiş versiya
         const calculateTotals = () => {
-         let subtotal = 0;
+            let subtotal = 0;
+            const rows = document.querySelectorAll('#items-tbody tr');
+            
+            rows.forEach((tr, idx) => {
+                // Sətir nömrələrini avtomatik düzəlt
+                tr.querySelector('.row-num').textContent = idx + 1;
+                
+                const qtyVal = tr.querySelector('.i-qty').value;
+                const priceVal = tr.querySelector('.i-price').value;
+                
+                const qty = parseFloat(qtyVal) || 0;
+                const price = parseFloat(priceVal) || 0;
+                const amt = qty * price;
+                
+                tr.querySelector('.i-amt').textContent = amt.toFixed(2);
+                subtotal += amt;
+            });
 
-         document.querySelectorAll('#items-tbody tr').forEach((tr, idx) => {
-            tr.cells[0].innerText = idx + 1;
-            const qty = parseFloat(tr.querySelector('.i-qty').value) || 0;
-            const price = parseFloat(tr.querySelector('.i-price').value) || 0;
-            const amt = qty * price;
-            tr.querySelector('.i-amt').innerText = amt.toFixed(2);
-            subtotal += amt;
-        });
-
-    const taxRate = 0.18; // 18% ƏDV
-    const tax = subtotal * taxRate;
-    const total = subtotal + tax;
-
-    document.getElementById('t_subtotal').innerText = subtotal.toFixed(2);
-    document.getElementById('t_tax').innerText = tax.toFixed(2);
-    document.getElementById('t_total').innerText = total.toFixed(2);
-
-    autoSave();
-};
-        
-
+            // ƏDV Hesablama
             const taxRate = parseFloat(document.getElementById('t_tax_rate').value) || 0;
             const tax = subtotal * (taxRate / 100);
             const total = subtotal + tax;
 
-            document.getElementById('t_subtotal').innerText = subtotal.toFixed(2);
-            document.getElementById('t_tax').innerText = tax.toFixed(2);
-            document.getElementById('t_total').innerText = total.toFixed(2);
+            // Nəticələri HTML-ə yazdır
+            document.getElementById('t_subtotal').textContent = subtotal.toFixed(2);
+            document.getElementById('t_tax').textContent = tax.toFixed(2);
+            document.getElementById('t_total').textContent = total.toFixed(2);
+            
             autoSave();
         };
 
+        // AVTOMATİK YADDA SAXLAMA VƏ BAZA YENİLƏMƏ
         const autoSave = () => {
             if(!currentQuoteId) return;
+
+            // 1. Müştəri Bazası Yoxlanışı
+            const clName = document.getElementById('cl_name').value.trim();
+            if(clName && !clients.includes(clName)) {
+                clients.push(clName);
+                localStorage.setItem('rm_clients', JSON.stringify(clients));
+                updateDatalists();
+            }
+
+            // 2. Təklif obyektini qur
             const quoteData = {
                 id: currentQuoteId,
                 date: document.getElementById('q_date').value,
-                client: document.getElementById('cl_name').value,
+                client: clName,
                 taxRate: document.getElementById('t_tax_rate').value,
-                subtotal: document.getElementById('t_subtotal').innerText,
-                tax: document.getElementById('t_tax').innerText,
-                total: document.getElementById('t_total').innerText,
+                subtotal: document.getElementById('t_subtotal').textContent,
+                tax: document.getElementById('t_tax').textContent,
+                total: document.getElementById('t_total').textContent,
                 items: []
             };
+
+            // 3. Məhsulları oxu və Məhsul Bazasına əlavə et
             document.querySelectorAll('#items-tbody tr').forEach(tr => {
-                const inputs = tr.querySelectorAll('input');
-                quoteData.items.push({
-                    name: inputs[0].value,
-                    unit: inputs[1].value,
-                    qty: inputs[2].value,
-                    price: inputs[3].value,
-                    note: inputs[4].value
-                });
+                const name = tr.querySelector('.i-name').value.trim();
+                const unit = tr.querySelector('.i-unit').value.trim();
+                const qty = tr.querySelector('.i-qty').value;
+                const price = tr.querySelector('.i-price').value;
+                const note = tr.querySelector('.i-note').value;
+
+                quoteData.items.push({ name, unit, qty, price, note });
+
+                if(name) {
+                    const existingP = products.find(p => p.name === name);
+                    if(!existingP) {
+                        products.push({ name, unit, price: parseFloat(price) || 0 });
+                        localStorage.setItem('rm_products', JSON.stringify(products));
+                        updateDatalists();
+                    }
+                }
             });
 
+            // 4. Quotes Array-də yenilə və ya əlavə et
             const idx = quotes.findIndex(q => q.id === currentQuoteId);
-            if(idx > -1) quotes[idx] = quoteData;
-            else quotes.unshift(quoteData);
+            if(idx > -1) {
+                quotes[idx] = quoteData;
+            } else {
+                quotes.unshift(quoteData);
+            }
             
             localStorage.setItem('rm_quotes', JSON.stringify(quotes));
             renderSidebar();
         };
 
+        // QAİMƏ YÜKLƏMƏ
         const loadQuote = (id) => {
             const q = quotes.find(x => x.id === id);
             if(!q) return;
+            
             currentQuoteId = q.id;
             document.getElementById('q_id').value = q.id;
-            document.getElementById('q_date').value = q.date;
-            document.getElementById('cl_name').value = q.client;
+            document.getElementById('q_date').value = q.date || '';
+            document.getElementById('cl_name').value = q.client || '';
             document.getElementById('t_tax_rate').value = q.taxRate !== undefined ? q.taxRate : '18';
+            
             document.getElementById('items-tbody').innerHTML = '';
-            q.items.forEach(item => addRow(item));
+            
+            if(q.items && q.items.length > 0) {
+                q.items.forEach(item => addRow(item));
+            } else {
+                addRow();
+            }
+            
             calculateTotals();
             renderSidebar();
+            
+            // Mobildə seçdikdən sonra sidebaru bağla
+            document.getElementById('appSidebar').classList.remove('active');
         };
 
+        // QAİMƏ SİLMƏ
         const deleteCurrentQuote = () => {
-            if(!confirm('Silmək istəyirsiniz?')) return;
+            if(!confirm('Bu qaiməni silmək istədiyinizə əminsiniz?')) return;
+            
             quotes = quotes.filter(q => q.id !== currentQuoteId);
             localStorage.setItem('rm_quotes', JSON.stringify(quotes));
-            if(quotes.length > 0) loadQuote(quotes[0].id);
-            else createNewQuote();
+            
+            if(quotes.length > 0) {
+                loadQuote(quotes[0].id);
+            } else {
+                createNewQuote();
+            }
         };
 
+        // SIDEBAR AXTARIŞ VƏ YENİLƏMƏ (XSS-dən qorunmuş)
         const renderSidebar = () => {
             const list = document.getElementById('quoteList');
             const term = document.getElementById('searchInput').value.toLowerCase();
-            list.innerHTML = '';
-            quotes.filter(q => q.id.toLowerCase().includes(term) || q.client.toLowerCase().includes(term)).forEach(q => {
-                const div = document.createElement('div');
-                div.className = `quote-item ${q.id === currentQuoteId ? 'active' : ''}`;
-                div.onclick = () => loadQuote(q.id);
-                div.innerHTML = `<strong>${q.id}</strong><br><small>${q.client || 'Adsız'}</small><br><span>${q.total} ₼</span>`;
-                list.appendChild(div);
+            list.innerHTML = ''; // Köhnə sətirləri təmizlə
+            
+            quotes.forEach(q => {
+                const clientIdSafe = (q.id || '').toLowerCase();
+                const clientNameSafe = (q.client || '').toLowerCase();
+                
+                if (clientIdSafe.includes(term) || clientNameSafe.includes(term)) {
+                    const div = document.createElement('div');
+                    div.className = `quote-item ${q.id === currentQuoteId ? 'active' : ''}`;
+                    div.onclick = () => loadQuote(q.id);
+                    
+                    // XSS qoruması üçün textContent istifadə edirik
+                    const strong = document.createElement('strong'); strong.textContent = q.id;
+                    const br1 = document.createElement('br');
+                    const small = document.createElement('small'); small.textContent = q.client || 'Müştəri Qeyd Edilməyib';
+                    const br2 = document.createElement('br');
+                    const span = document.createElement('span'); span.textContent = `${q.total} ₼`;
+                    
+                    div.append(strong, br1, small, br2, span);
+                    list.appendChild(div);
+                }
             });
         };
 
+        // AYARLAR (Şirkət Məlumatları)
         const openSettings = () => {
-            document.getElementById('set_name').value = settings.name;
-            document.getElementById('set_addr').value = settings.address;
-            document.getElementById('set_phone').value = settings.phone;
-            document.getElementById('set_email').value = settings.email;
+            document.getElementById('set_name').value = settings.name || '';
+            document.getElementById('set_addr').value = settings.address || '';
+            document.getElementById('set_phone').value = settings.phone || '';
+            document.getElementById('set_email').value = settings.email || '';
             document.getElementById('settingsModal').style.display = 'flex';
         };
 
         const saveSettings = () => {
-            settings.name = document.getElementById('set_name').value;
-            settings.address = document.getElementById('set_addr').value;
-            settings.phone = document.getElementById('set_phone').value;
-            settings.email = document.getElementById('set_email').value;
+            settings.name = document.getElementById('set_name').value.trim();
+            settings.address = document.getElementById('set_addr').value.trim();
+            settings.phone = document.getElementById('set_phone').value.trim();
+            settings.email = document.getElementById('set_email').value.trim();
             localStorage.setItem('rm_settings', JSON.stringify(settings));
             applySettings();
             document.getElementById('settingsModal').style.display = 'none';
         };
 
         const applySettings = () => {
-            document.getElementById('disp_c_name').innerText = settings.name;
-            document.getElementById('disp_c_addr').innerText = settings.address;
-            document.getElementById('disp_c_phone').innerText = settings.phone;
-            document.getElementById('disp_c_email').innerText = settings.email;
-            document.getElementById('f_phone').innerText = settings.phone;
-            document.getElementById('f_email').innerText = settings.email;
+            // Şirkət adı, ünvan DOM elementlərində textContent ilə (Təhlükəsiz) yenilənir
+            document.getElementById('disp_c_name').textContent = settings.name;
+            document.getElementById('disp_c_addr').textContent = settings.address;
+            document.getElementById('disp_c_phone').textContent = settings.phone;
+            document.getElementById('disp_c_email').textContent = settings.email;
+            document.getElementById('f_phone').textContent = settings.phone;
+            document.getElementById('f_email').textContent = settings.email;
         };
 
+        // DATALIST YENİLƏMƏ VƏ AVTODOLDURMA
         const updateDatalists = () => {
-            document.getElementById('clients-list').innerHTML = clients.map(c => `<option value="${c}">`).join('');
-            document.getElementById('products-list').innerHTML = products.map(p => `<option value="${p.name}">`).join('');
+            const cList = document.getElementById('clients-list');
+            const pList = document.getElementById('products-list');
+            cList.innerHTML = '';
+            pList.innerHTML = '';
+            
+            clients.forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c;
+                cList.appendChild(opt);
+            });
+            products.forEach(p => {
+                const opt = document.createElement('option');
+                opt.value = p.name;
+                pList.appendChild(opt);
+            });
         };
+
         const handleProdInput = (el) => {
             const p = products.find(x => x.name === el.value);
             if(p) {
                 const tr = el.closest('tr');
-                tr.querySelector('input[value="Metr"]').value = p.unit;
-                tr.querySelector('.i-price').value = p.price;
+                tr.querySelector('.i-unit').value = p.unit || 'Metr';
+                tr.querySelector('.i-price').value = p.price || 0;
                 calculateTotals();
+            } else {
+                autoSave();
             }
         };
 
-        const handleClientInput = (val) => {
+        // DÜYMƏLƏR ÜÇÜN MANUAL YADDA SAXLAMA BİLDİRİŞİ
+        const saveCurrentQuote = (manual) => {
             autoSave();
+            if(manual) alert('✅ Məlumatlar uğurla yadda saxlanıldı!');
         };
 
-        // Export Functions
+        // EXPORT - PDF (Çoxsəhifəli, Təhlükəsiz)
         async function exportPDF() {
             const element = document.getElementById('print-area');
-            element.classList.add('pdf-mode');
-            const canvas = await html2canvas(element, { scale: 2 });
-            const imgData = canvas.toDataURL('image/png');
-            const pdf = new jspdf.jsPDF('p', 'mm', 'a4');
-            const pdfW = pdf.internal.pageSize.getWidth();
-            const pdfH = (canvas.height * pdfW) / canvas.width;
-            pdf.addImage(imgData, 'PNG', 0, 0, pdfW, pdfH);
-            pdf.save(`${currentQuoteId}.pdf`);
-            element.classList.remove('pdf-mode');
+            try {
+                element.classList.add('pdf-mode');
+                // DOM tam yenilənsin deyə kiçik gecikmə
+                await new Promise(r => setTimeout(r, 100)); 
+                
+                const canvas = await html2canvas(element, { scale: 2, useCORS: true });
+                const imgData = canvas.toDataURL('image/png');
+                
+                const pdf = new jspdf.jsPDF('p', 'mm', 'a4');
+                const pdfWidth = pdf.internal.pageSize.getWidth();
+                const pdfHeight = pdf.internal.pageSize.getHeight();
+                
+                // Şəklin hündürlüyü pdf səhifəsinin eninə görə hesablanır
+                const imgProps = pdf.getImageProperties(imgData);
+                const imgHeight = (imgProps.height * pdfWidth) / imgProps.width;
+                
+                let heightLeft = imgHeight;
+                let position = 0;
+
+                pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, imgHeight);
+                heightLeft -= pdfHeight;
+
+                // Məzmun bir səhifədən çoxdursa yeni səhifələrə böl
+                while (heightLeft > 0) {
+                    position = heightLeft - imgHeight;
+                    pdf.addPage();
+                    pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, imgHeight);
+                    heightLeft -= pdfHeight;
+                }
+
+                pdf.save(`${currentQuoteId || 'Təklif'}.pdf`);
+            } catch (err) {
+                console.error("PDF Yükləmə Xətası:", err);
+                alert("PDF yaradılarkən xəta baş verdi.");
+            } finally {
+                element.classList.remove('pdf-mode');
+            }
         }
 
+        // EXPORT - EXCEL
         function exportExcel() {
-            const rows = [['#', 'Malın adı', 'Ölçü vahidi', 'Miqdar', 'Qiymət', 'Məbləğ']];
-            document.querySelectorAll('#items-tbody tr').forEach(tr => {
-                const ins = tr.querySelectorAll('input');
-                rows.push([tr.cells[0].innerText, ins[0].value, ins[1].value, ins[2].value, ins[3].value, tr.cells[5].innerText]);
-            });
-            rows.push([]);
-            rows.push(['', '', '', '', 'Cəmi:', document.getElementById('t_subtotal').innerText]);
-            rows.push(['', '', '', '', `ƏDV (${document.getElementById('t_tax_rate').value}%):`, document.getElementById('t_tax').innerText]);
-            rows.push(['', '', '', '', 'Yekun:', document.getElementById('t_total').innerText]);
-
-            const ws = XLSX.utils.aoa_to_sheet(rows);
-            const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, "Təklif");
-            XLSX.writeFile(wb, `${currentQuoteId}.xlsx`);
-        }
-
-        function saveCurrentQuote(manual) {
-            autoSave();
-            if(manual) alert('Yadda saxlanıldı!');
+            try {
+                const rows = [['#', 'Malların adı', 'Ölçü vahidi', 'Miqdar', 'Qiymət', 'Məbləğ (AZN)', 'Qeydlər']];
+                
+                document.querySelectorAll('#items-tbody tr').forEach(tr => {
+                    const rowNum = tr.querySelector('.row-num').textContent;
+                    const name = tr.querySelector('.i-name').value;
+                    const unit = tr.querySelector('.i-unit').value;
+                    const qty = parseFloat(tr.querySelector('.i-qty').value) || 0;
+                    const price = parseFloat(tr.querySelector('.i-price').value) || 0;
+                    const amt = parseFloat(tr.querySelector('.i-amt').textContent) || 0;
+                    const note = tr.querySelector('.i-note').value;
+                    
+                    rows.push([rowNum, name, unit, qty, price, amt, note]);
+                });
+                
+                rows.push([]);
+                rows.push(['', '', '', '', 'Cəmi:', document.getElementById('t_subtotal').textContent, '']);
+                rows.push(['', '', '', '', `ƏDV (${document.getElementById('t_tax_rate').value}%):`, document.getElementById('t_tax').textContent, '']);
+                rows.push(['', '', '', '', 'Yekun:', document.getElementById('t_total').textContent, '']);
+                
+                const ws = XLSX.utils.aoa_to_sheet(rows);
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, "Təklif");
+                XLSX.writeFile(wb, `${currentQuoteId || 'Təklif'}.xlsx`);
+            } catch (err) {
+                console.error("Excel Yükləmə Xətası:", err);
+                alert("Excel yaradılarkən xəta baş verdi.");
+            }
         }
     </script>
 </body>
 </html>
-       
