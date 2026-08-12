@@ -228,6 +228,21 @@
     </div>
 
     <script>
+        const calculateTotals = () => {
+    let subtotal = 0;
+    document.querySelectorAll('#items-tbody tr').forEach((tr, idx) => {
+        tr.cells[0].innerText = idx + 1;
+        const qty = parseFloat(tr.querySelector('.i-qty').value) || 0;
+        const price = parseFloat(tr.querySelector('.i-price').value) || 0;
+        const amt = qty * price;
+        tr.querySelector('.i-amt').innerText = amt.toFixed(2);
+        subtotal += amt;
+    });
+    document.getElementById('t_subtotal').innerText = subtotal.toFixed(2);
+    document.getElementById('t_total').innerText = subtotal.toFixed(2);
+    autoSave();
+};
+        
         let quotes = [], clients = [], products = [], settings = {};
         let currentQuoteId = null;
 
